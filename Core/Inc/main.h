@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+ /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.h
@@ -57,50 +57,48 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LCD_A6_Pin GPIO_PIN_12
-#define LCD_A6_GPIO_Port GPIOF
-#define LCD_AD7606_D4_Pin GPIO_PIN_7
-#define LCD_AD7606_D4_GPIO_Port GPIOE
-#define LCD_AD7606_D5_Pin GPIO_PIN_8
-#define LCD_AD7606_D5_GPIO_Port GPIOE
-#define LCD_AD7606_D6_Pin GPIO_PIN_9
-#define LCD_AD7606_D6_GPIO_Port GPIOE
-#define LCD_AD7606_D7_Pin GPIO_PIN_10
-#define LCD_AD7606_D7_GPIO_Port GPIOE
-#define LCD_AD7606_D8_Pin GPIO_PIN_11
-#define LCD_AD7606_D8_GPIO_Port GPIOE
-#define LCD_AD7606_D9_Pin GPIO_PIN_12
-#define LCD_AD7606_D9_GPIO_Port GPIOE
-#define LCD_AD7606_D10_Pin GPIO_PIN_13
-#define LCD_AD7606_D10_GPIO_Port GPIOE
-#define LCD_AD7606_D11_Pin GPIO_PIN_14
-#define LCD_AD7606_D11_GPIO_Port GPIOE
-#define LCD_AD7606_D12_Pin GPIO_PIN_15
-#define LCD_AD7606_D12_GPIO_Port GPIOE
-#define LCD_AD7606_D13_Pin GPIO_PIN_8
-#define LCD_AD7606_D13_GPIO_Port GPIOD
-#define LCD_AD7606_D14_Pin GPIO_PIN_9
-#define LCD_AD7606_D14_GPIO_Port GPIOD
-#define LCD_AD7606_D15_Pin GPIO_PIN_10
-#define LCD_AD7606_D15_GPIO_Port GPIOD
-#define LCD_AD7606_D0_Pin GPIO_PIN_14
-#define LCD_AD7606_D0_GPIO_Port GPIOD
-#define LCD_AD7606_D1_Pin GPIO_PIN_15
-#define LCD_AD7606_D1_GPIO_Port GPIOD
-#define LCD_AD7606_PG7_Pin GPIO_PIN_7
-#define LCD_AD7606_PG7_GPIO_Port GPIOG
-#define LCD_AD7606_NE1_Pin GPIO_PIN_7
-#define LCD_AD7606_NE1_GPIO_Port GPIOC
-#define LCD_AD7606_D2_Pin GPIO_PIN_0
-#define LCD_AD7606_D2_GPIO_Port GPIOD
-#define LCD_AD7606_D3_Pin GPIO_PIN_1
-#define LCD_AD7606_D3_GPIO_Port GPIOD
-#define LCD_AD7606_NOE_Pin GPIO_PIN_4
-#define LCD_AD7606_NOE_GPIO_Port GPIOD
-#define LCD_AD7606_NWE_Pin GPIO_PIN_5
-#define LCD_AD7606_NWE_GPIO_Port GPIOD
-#define LCD_AD7606_NE4_Pin GPIO_PIN_12
-#define LCD_AD7606_NE4_GPIO_Port GPIOG
+#define AD7606_RST_Pin GPIO_PIN_0
+#define AD7606_RST_GPIO_Port GPIOC
+#define AD7606_OS0_Pin GPIO_PIN_1
+#define AD7606_OS0_GPIO_Port GPIOC
+#define AD7606_OS1_Pin GPIO_PIN_2
+#define AD7606_OS1_GPIO_Port GPIOC
+#define AD7606_OS2_Pin GPIO_PIN_3
+#define AD7606_OS2_GPIO_Port GPIOC
+#define LED3_Pin GPIO_PIN_2
+#define LED3_GPIO_Port GPIOA
+#define AD7606_SPI_SCK_Pin GPIO_PIN_5
+#define AD7606_SPI_SCK_GPIO_Port GPIOA
+#define AD7606_SPI_MISO_Pin GPIO_PIN_6
+#define AD7606_SPI_MISO_GPIO_Port GPIOA
+#define AD7606_RANGE_Pin GPIO_PIN_4
+#define AD7606_RANGE_GPIO_Port GPIOC
+#define AD7606_FD_Pin GPIO_PIN_5
+#define AD7606_FD_GPIO_Port GPIOC
+#define AD7606_BUSY_Pin GPIO_PIN_0
+#define AD7606_BUSY_GPIO_Port GPIOB
+#define AD7606_PG7_Pin GPIO_PIN_7
+#define AD7606_PG7_GPIO_Port GPIOG
+#define LCD_NSS_Pin GPIO_PIN_8
+#define LCD_NSS_GPIO_Port GPIOG
+#define AD7606_NE1_CS_Pin GPIO_PIN_7
+#define AD7606_NE1_CS_GPIO_Port GPIOC
+#define AD7606_CACB_Pin GPIO_PIN_8
+#define AD7606_CACB_GPIO_Port GPIOA
+#define LED2_Pin GPIO_PIN_11
+#define LED2_GPIO_Port GPIOA
+#define LED1_Pin GPIO_PIN_12
+#define LED1_GPIO_Port GPIOA
+#define AD7606_NOE_RD_Pin GPIO_PIN_4
+#define AD7606_NOE_RD_GPIO_Port GPIOD
+#define LCD_BL_Pin GPIO_PIN_12
+#define LCD_BL_GPIO_Port GPIOG
+#define LCD_SCK_Pin GPIO_PIN_13
+#define LCD_SCK_GPIO_Port GPIOG
+#define LCD_MOSI_Pin GPIO_PIN_14
+#define LCD_MOSI_GPIO_Port GPIOG
+#define LCD_DC_Pin GPIO_PIN_15
+#define LCD_DC_GPIO_Port GPIOG
 
 /* USER CODE BEGIN Private defines */
 

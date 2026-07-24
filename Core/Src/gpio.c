@@ -51,18 +51,60 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LCD_AD7606_PG7_GPIO_Port, LCD_AD7606_PG7_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, AD7606_RST_Pin|AD7606_OS0_Pin|AD7606_OS1_Pin|AD7606_OS2_Pin
+                          |AD7606_RANGE_Pin|AD7606_FD_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : LCD_AD7606_PG7_Pin */
-  GPIO_InitStruct.Pin = LCD_AD7606_PG7_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LED3_Pin|AD7606_CACB_Pin|LED2_Pin|LED1_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOG, AD7606_PG7_Pin|LCD_BL_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : AD7606_RST_Pin AD7606_OS0_Pin AD7606_OS1_Pin AD7606_OS2_Pin
+                           AD7606_RANGE_Pin AD7606_FD_Pin */
+  GPIO_InitStruct.Pin = AD7606_RST_Pin|AD7606_OS0_Pin|AD7606_OS1_Pin|AD7606_OS2_Pin
+                          |AD7606_RANGE_Pin|AD7606_FD_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LCD_AD7606_PG7_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LED3_Pin AD7606_CACB_Pin LED2_Pin LED1_Pin */
+  GPIO_InitStruct.Pin = LED3_Pin|AD7606_CACB_Pin|LED2_Pin|LED1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : AD7606_BUSY_Pin */
+  GPIO_InitStruct.Pin = AD7606_BUSY_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(AD7606_BUSY_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : AD7606_PG7_Pin LCD_BL_Pin */
+  GPIO_InitStruct.Pin = AD7606_PG7_Pin|LCD_BL_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LCD_DC_Pin */
+  GPIO_InitStruct.Pin = LCD_DC_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LCD_DC_GPIO_Port, &GPIO_InitStruct);
+
+  /*AnalogSwitch Config */
+  HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PC2, SYSCFG_SWITCH_PC2_CLOSE);
+
+  /*AnalogSwitch Config */
+  HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PC3, SYSCFG_SWITCH_PC3_CLOSE);
 
 }
 

@@ -1,0 +1,584 @@
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 1
+
+
+   1              		.cpu cortex-m7
+   2              		.arch armv7e-m
+   3              		.fpu fpv5-d16
+   4              		.eabi_attribute 28, 1
+   5              		.eabi_attribute 20, 1
+   6              		.eabi_attribute 21, 1
+   7              		.eabi_attribute 23, 3
+   8              		.eabi_attribute 24, 1
+   9              		.eabi_attribute 25, 1
+  10              		.eabi_attribute 26, 1
+  11              		.eabi_attribute 30, 1
+  12              		.eabi_attribute 34, 1
+  13              		.eabi_attribute 18, 4
+  14              		.file	"usart.c"
+  15              		.text
+  16              	.Ltext0:
+  17              		.cfi_sections	.debug_frame
+  18              		.file 1 "Core/Src/usart.c"
+  19              		.section	.text.MX_UART4_Init,"ax",%progbits
+  20              		.align	1
+  21              		.global	MX_UART4_Init
+  22              		.syntax unified
+  23              		.thumb
+  24              		.thumb_func
+  26              	MX_UART4_Init:
+  27              	.LFB144:
+   1:Core/Src/usart.c **** /* USER CODE BEGIN Header */
+   2:Core/Src/usart.c **** /**
+   3:Core/Src/usart.c ****   ******************************************************************************
+   4:Core/Src/usart.c ****   * @file    usart.c
+   5:Core/Src/usart.c ****   * @brief   This file provides code for the configuration
+   6:Core/Src/usart.c ****   *          of the USART instances.
+   7:Core/Src/usart.c ****   ******************************************************************************
+   8:Core/Src/usart.c ****   * @attention
+   9:Core/Src/usart.c ****   *
+  10:Core/Src/usart.c ****   * Copyright (c) 2026 STMicroelectronics.
+  11:Core/Src/usart.c ****   * All rights reserved.
+  12:Core/Src/usart.c ****   *
+  13:Core/Src/usart.c ****   * This software is licensed under terms that can be found in the LICENSE file
+  14:Core/Src/usart.c ****   * in the root directory of this software component.
+  15:Core/Src/usart.c ****   * If no LICENSE file comes with this software, it is provided AS-IS.
+  16:Core/Src/usart.c ****   *
+  17:Core/Src/usart.c ****   ******************************************************************************
+  18:Core/Src/usart.c ****   */
+  19:Core/Src/usart.c **** /* USER CODE END Header */
+  20:Core/Src/usart.c **** /* Includes ------------------------------------------------------------------*/
+  21:Core/Src/usart.c **** #include "usart.h"
+  22:Core/Src/usart.c **** 
+  23:Core/Src/usart.c **** /* USER CODE BEGIN 0 */
+  24:Core/Src/usart.c **** 
+  25:Core/Src/usart.c **** /* USER CODE END 0 */
+  26:Core/Src/usart.c **** 
+  27:Core/Src/usart.c **** UART_HandleTypeDef huart4;
+  28:Core/Src/usart.c **** 
+  29:Core/Src/usart.c **** /* UART4 init function */
+  30:Core/Src/usart.c **** void MX_UART4_Init(void)
+  31:Core/Src/usart.c **** {
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 2
+
+
+  28              		.loc 1 31 1 view -0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32 0000 08B5     		push	{r3, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 8
+  35              		.cfi_offset 3, -8
+  36              		.cfi_offset 14, -4
+  32:Core/Src/usart.c **** 
+  33:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_Init 0 */
+  34:Core/Src/usart.c **** 
+  35:Core/Src/usart.c ****   /* USER CODE END UART4_Init 0 */
+  36:Core/Src/usart.c **** 
+  37:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_Init 1 */
+  38:Core/Src/usart.c **** 
+  39:Core/Src/usart.c ****   /* USER CODE END UART4_Init 1 */
+  40:Core/Src/usart.c ****   huart4.Instance = UART4;
+  37              		.loc 1 40 3 view .LVU1
+  38              		.loc 1 40 19 is_stmt 0 view .LVU2
+  39 0002 1748     		ldr	r0, .L11
+  40 0004 174B     		ldr	r3, .L11+4
+  41 0006 0360     		str	r3, [r0]
+  41:Core/Src/usart.c ****   huart4.Init.BaudRate = 115200;
+  42              		.loc 1 41 3 is_stmt 1 view .LVU3
+  43              		.loc 1 41 24 is_stmt 0 view .LVU4
+  44 0008 4FF4E133 		mov	r3, #115200
+  45 000c 4360     		str	r3, [r0, #4]
+  42:Core/Src/usart.c ****   huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  46              		.loc 1 42 3 is_stmt 1 view .LVU5
+  47              		.loc 1 42 26 is_stmt 0 view .LVU6
+  48 000e 0023     		movs	r3, #0
+  49 0010 8360     		str	r3, [r0, #8]
+  43:Core/Src/usart.c ****   huart4.Init.StopBits = UART_STOPBITS_1;
+  50              		.loc 1 43 3 is_stmt 1 view .LVU7
+  51              		.loc 1 43 24 is_stmt 0 view .LVU8
+  52 0012 C360     		str	r3, [r0, #12]
+  44:Core/Src/usart.c ****   huart4.Init.Parity = UART_PARITY_NONE;
+  53              		.loc 1 44 3 is_stmt 1 view .LVU9
+  54              		.loc 1 44 22 is_stmt 0 view .LVU10
+  55 0014 0361     		str	r3, [r0, #16]
+  45:Core/Src/usart.c ****   huart4.Init.Mode = UART_MODE_TX_RX;
+  56              		.loc 1 45 3 is_stmt 1 view .LVU11
+  57              		.loc 1 45 20 is_stmt 0 view .LVU12
+  58 0016 0C22     		movs	r2, #12
+  59 0018 4261     		str	r2, [r0, #20]
+  46:Core/Src/usart.c ****   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  60              		.loc 1 46 3 is_stmt 1 view .LVU13
+  61              		.loc 1 46 25 is_stmt 0 view .LVU14
+  62 001a 8361     		str	r3, [r0, #24]
+  47:Core/Src/usart.c ****   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  63              		.loc 1 47 3 is_stmt 1 view .LVU15
+  64              		.loc 1 47 28 is_stmt 0 view .LVU16
+  65 001c C361     		str	r3, [r0, #28]
+  48:Core/Src/usart.c ****   huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  66              		.loc 1 48 3 is_stmt 1 view .LVU17
+  67              		.loc 1 48 30 is_stmt 0 view .LVU18
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 3
+
+
+  68 001e 0362     		str	r3, [r0, #32]
+  49:Core/Src/usart.c ****   huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  69              		.loc 1 49 3 is_stmt 1 view .LVU19
+  70              		.loc 1 49 30 is_stmt 0 view .LVU20
+  71 0020 4362     		str	r3, [r0, #36]
+  50:Core/Src/usart.c ****   huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  72              		.loc 1 50 3 is_stmt 1 view .LVU21
+  73              		.loc 1 50 38 is_stmt 0 view .LVU22
+  74 0022 8362     		str	r3, [r0, #40]
+  51:Core/Src/usart.c ****   if (HAL_UART_Init(&huart4) != HAL_OK)
+  75              		.loc 1 51 3 is_stmt 1 view .LVU23
+  76              		.loc 1 51 7 is_stmt 0 view .LVU24
+  77 0024 FFF7FEFF 		bl	HAL_UART_Init
+  78              	.LVL0:
+  79              		.loc 1 51 6 discriminator 1 view .LVU25
+  80 0028 70B9     		cbnz	r0, .L7
+  81              	.L2:
+  52:Core/Src/usart.c ****   {
+  53:Core/Src/usart.c ****     Error_Handler();
+  54:Core/Src/usart.c ****   }
+  55:Core/Src/usart.c ****   if (HAL_UARTEx_SetTxFifoThreshold(&huart4, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  82              		.loc 1 55 3 is_stmt 1 view .LVU26
+  83              		.loc 1 55 7 is_stmt 0 view .LVU27
+  84 002a 0021     		movs	r1, #0
+  85 002c 0C48     		ldr	r0, .L11
+  86 002e FFF7FEFF 		bl	HAL_UARTEx_SetTxFifoThreshold
+  87              	.LVL1:
+  88              		.loc 1 55 6 discriminator 1 view .LVU28
+  89 0032 60B9     		cbnz	r0, .L8
+  90              	.L3:
+  56:Core/Src/usart.c ****   {
+  57:Core/Src/usart.c ****     Error_Handler();
+  58:Core/Src/usart.c ****   }
+  59:Core/Src/usart.c ****   if (HAL_UARTEx_SetRxFifoThreshold(&huart4, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  91              		.loc 1 59 3 is_stmt 1 view .LVU29
+  92              		.loc 1 59 7 is_stmt 0 view .LVU30
+  93 0034 0021     		movs	r1, #0
+  94 0036 0A48     		ldr	r0, .L11
+  95 0038 FFF7FEFF 		bl	HAL_UARTEx_SetRxFifoThreshold
+  96              	.LVL2:
+  97              		.loc 1 59 6 discriminator 1 view .LVU31
+  98 003c 50B9     		cbnz	r0, .L9
+  99              	.L4:
+  60:Core/Src/usart.c ****   {
+  61:Core/Src/usart.c ****     Error_Handler();
+  62:Core/Src/usart.c ****   }
+  63:Core/Src/usart.c ****   if (HAL_UARTEx_DisableFifoMode(&huart4) != HAL_OK)
+ 100              		.loc 1 63 3 is_stmt 1 view .LVU32
+ 101              		.loc 1 63 7 is_stmt 0 view .LVU33
+ 102 003e 0848     		ldr	r0, .L11
+ 103 0040 FFF7FEFF 		bl	HAL_UARTEx_DisableFifoMode
+ 104              	.LVL3:
+ 105              		.loc 1 63 6 discriminator 1 view .LVU34
+ 106 0044 48B9     		cbnz	r0, .L10
+ 107              	.L1:
+  64:Core/Src/usart.c ****   {
+  65:Core/Src/usart.c ****     Error_Handler();
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 4
+
+
+  66:Core/Src/usart.c ****   }
+  67:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_Init 2 */
+  68:Core/Src/usart.c **** 
+  69:Core/Src/usart.c ****   /* USER CODE END UART4_Init 2 */
+  70:Core/Src/usart.c **** 
+  71:Core/Src/usart.c **** }
+ 108              		.loc 1 71 1 view .LVU35
+ 109 0046 08BD     		pop	{r3, pc}
+ 110              	.L7:
+  53:Core/Src/usart.c ****   }
+ 111              		.loc 1 53 5 is_stmt 1 view .LVU36
+ 112 0048 FFF7FEFF 		bl	Error_Handler
+ 113              	.LVL4:
+ 114 004c EDE7     		b	.L2
+ 115              	.L8:
+  57:Core/Src/usart.c ****   }
+ 116              		.loc 1 57 5 view .LVU37
+ 117 004e FFF7FEFF 		bl	Error_Handler
+ 118              	.LVL5:
+ 119 0052 EFE7     		b	.L3
+ 120              	.L9:
+  61:Core/Src/usart.c ****   }
+ 121              		.loc 1 61 5 view .LVU38
+ 122 0054 FFF7FEFF 		bl	Error_Handler
+ 123              	.LVL6:
+ 124 0058 F1E7     		b	.L4
+ 125              	.L10:
+  65:Core/Src/usart.c ****   }
+ 126              		.loc 1 65 5 view .LVU39
+ 127 005a FFF7FEFF 		bl	Error_Handler
+ 128              	.LVL7:
+ 129              		.loc 1 71 1 is_stmt 0 view .LVU40
+ 130 005e F2E7     		b	.L1
+ 131              	.L12:
+ 132              		.align	2
+ 133              	.L11:
+ 134 0060 00000000 		.word	huart4
+ 135 0064 004C0040 		.word	1073761280
+ 136              		.cfi_endproc
+ 137              	.LFE144:
+ 139              		.section	.text.HAL_UART_MspInit,"ax",%progbits
+ 140              		.align	1
+ 141              		.global	HAL_UART_MspInit
+ 142              		.syntax unified
+ 143              		.thumb
+ 144              		.thumb_func
+ 146              	HAL_UART_MspInit:
+ 147              	.LVL8:
+ 148              	.LFB145:
+  72:Core/Src/usart.c **** 
+  73:Core/Src/usart.c **** void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
+  74:Core/Src/usart.c **** {
+ 149              		.loc 1 74 1 is_stmt 1 view -0
+ 150              		.cfi_startproc
+ 151              		@ args = 0, pretend = 0, frame = 224
+ 152              		@ frame_needed = 0, uses_anonymous_args = 0
+ 153              		.loc 1 74 1 is_stmt 0 view .LVU42
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 5
+
+
+ 154 0000 10B5     		push	{r4, lr}
+ 155              	.LCFI1:
+ 156              		.cfi_def_cfa_offset 8
+ 157              		.cfi_offset 4, -8
+ 158              		.cfi_offset 14, -4
+ 159 0002 B8B0     		sub	sp, sp, #224
+ 160              	.LCFI2:
+ 161              		.cfi_def_cfa_offset 232
+ 162 0004 0446     		mov	r4, r0
+  75:Core/Src/usart.c **** 
+  76:Core/Src/usart.c ****   GPIO_InitTypeDef GPIO_InitStruct = {0};
+ 163              		.loc 1 76 3 is_stmt 1 view .LVU43
+ 164              		.loc 1 76 20 is_stmt 0 view .LVU44
+ 165 0006 0021     		movs	r1, #0
+ 166 0008 3391     		str	r1, [sp, #204]
+ 167 000a 3491     		str	r1, [sp, #208]
+ 168 000c 3591     		str	r1, [sp, #212]
+ 169 000e 3691     		str	r1, [sp, #216]
+ 170 0010 3791     		str	r1, [sp, #220]
+  77:Core/Src/usart.c ****   RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+ 171              		.loc 1 77 3 is_stmt 1 view .LVU45
+ 172              		.loc 1 77 28 is_stmt 0 view .LVU46
+ 173 0012 C022     		movs	r2, #192
+ 174 0014 02A8     		add	r0, sp, #8
+ 175              	.LVL9:
+ 176              		.loc 1 77 28 view .LVU47
+ 177 0016 FFF7FEFF 		bl	memset
+ 178              	.LVL10:
+  78:Core/Src/usart.c ****   if(uartHandle->Instance==UART4)
+ 179              		.loc 1 78 3 is_stmt 1 view .LVU48
+ 180              		.loc 1 78 16 is_stmt 0 view .LVU49
+ 181 001a 2268     		ldr	r2, [r4]
+ 182              		.loc 1 78 5 view .LVU50
+ 183 001c 1B4B     		ldr	r3, .L19
+ 184 001e 9A42     		cmp	r2, r3
+ 185 0020 01D0     		beq	.L17
+ 186              	.L13:
+  79:Core/Src/usart.c ****   {
+  80:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_MspInit 0 */
+  81:Core/Src/usart.c **** 
+  82:Core/Src/usart.c ****   /* USER CODE END UART4_MspInit 0 */
+  83:Core/Src/usart.c **** 
+  84:Core/Src/usart.c ****   /** Initializes the peripherals clock
+  85:Core/Src/usart.c ****   */
+  86:Core/Src/usart.c ****     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_UART4;
+  87:Core/Src/usart.c ****     PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
+  88:Core/Src/usart.c ****     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+  89:Core/Src/usart.c ****     {
+  90:Core/Src/usart.c ****       Error_Handler();
+  91:Core/Src/usart.c ****     }
+  92:Core/Src/usart.c **** 
+  93:Core/Src/usart.c ****     /* UART4 clock enable */
+  94:Core/Src/usart.c ****     __HAL_RCC_UART4_CLK_ENABLE();
+  95:Core/Src/usart.c **** 
+  96:Core/Src/usart.c ****     __HAL_RCC_GPIOA_CLK_ENABLE();
+  97:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+  98:Core/Src/usart.c ****     PA0     ------> UART4_TX
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 6
+
+
+  99:Core/Src/usart.c ****     PA1     ------> UART4_RX
+ 100:Core/Src/usart.c ****     */
+ 101:Core/Src/usart.c ****     GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+ 102:Core/Src/usart.c ****     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+ 103:Core/Src/usart.c ****     GPIO_InitStruct.Pull = GPIO_NOPULL;
+ 104:Core/Src/usart.c ****     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+ 105:Core/Src/usart.c ****     GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
+ 106:Core/Src/usart.c ****     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+ 107:Core/Src/usart.c **** 
+ 108:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_MspInit 1 */
+ 109:Core/Src/usart.c **** 
+ 110:Core/Src/usart.c ****   /* USER CODE END UART4_MspInit 1 */
+ 111:Core/Src/usart.c ****   }
+ 112:Core/Src/usart.c **** }
+ 187              		.loc 1 112 1 view .LVU51
+ 188 0022 38B0     		add	sp, sp, #224
+ 189              	.LCFI3:
+ 190              		.cfi_remember_state
+ 191              		.cfi_def_cfa_offset 8
+ 192              		@ sp needed
+ 193 0024 10BD     		pop	{r4, pc}
+ 194              	.LVL11:
+ 195              	.L17:
+ 196              	.LCFI4:
+ 197              		.cfi_restore_state
+  86:Core/Src/usart.c ****     PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
+ 198              		.loc 1 86 5 is_stmt 1 view .LVU52
+  86:Core/Src/usart.c ****     PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
+ 199              		.loc 1 86 46 is_stmt 0 view .LVU53
+ 200 0026 0222     		movs	r2, #2
+ 201 0028 0023     		movs	r3, #0
+ 202 002a CDE90223 		strd	r2, [sp, #8]
+  87:Core/Src/usart.c ****     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+ 203              		.loc 1 87 5 is_stmt 1 view .LVU54
+  88:Core/Src/usart.c ****     {
+ 204              		.loc 1 88 5 view .LVU55
+  88:Core/Src/usart.c ****     {
+ 205              		.loc 1 88 9 is_stmt 0 view .LVU56
+ 206 002e 02A8     		add	r0, sp, #8
+ 207 0030 FFF7FEFF 		bl	HAL_RCCEx_PeriphCLKConfig
+ 208              	.LVL12:
+  88:Core/Src/usart.c ****     {
+ 209              		.loc 1 88 8 discriminator 1 view .LVU57
+ 210 0034 30BB     		cbnz	r0, .L18
+ 211              	.L15:
+  94:Core/Src/usart.c **** 
+ 212              		.loc 1 94 5 is_stmt 1 view .LVU58
+ 213              	.LBB2:
+  94:Core/Src/usart.c **** 
+ 214              		.loc 1 94 5 view .LVU59
+  94:Core/Src/usart.c **** 
+ 215              		.loc 1 94 5 view .LVU60
+ 216 0036 164B     		ldr	r3, .L19+4
+ 217 0038 D3F8E820 		ldr	r2, [r3, #232]
+ 218 003c 42F40022 		orr	r2, r2, #524288
+ 219 0040 C3F8E820 		str	r2, [r3, #232]
+  94:Core/Src/usart.c **** 
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 7
+
+
+ 220              		.loc 1 94 5 view .LVU61
+ 221 0044 D3F8E820 		ldr	r2, [r3, #232]
+ 222 0048 02F40022 		and	r2, r2, #524288
+ 223 004c 0092     		str	r2, [sp]
+  94:Core/Src/usart.c **** 
+ 224              		.loc 1 94 5 view .LVU62
+ 225 004e 009A     		ldr	r2, [sp]
+ 226              	.LBE2:
+  94:Core/Src/usart.c **** 
+ 227              		.loc 1 94 5 view .LVU63
+  96:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 228              		.loc 1 96 5 view .LVU64
+ 229              	.LBB3:
+  96:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 230              		.loc 1 96 5 view .LVU65
+  96:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 231              		.loc 1 96 5 view .LVU66
+ 232 0050 D3F8E020 		ldr	r2, [r3, #224]
+ 233 0054 42F00102 		orr	r2, r2, #1
+ 234 0058 C3F8E020 		str	r2, [r3, #224]
+  96:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 235              		.loc 1 96 5 view .LVU67
+ 236 005c D3F8E030 		ldr	r3, [r3, #224]
+ 237 0060 03F00103 		and	r3, r3, #1
+ 238 0064 0193     		str	r3, [sp, #4]
+  96:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 239              		.loc 1 96 5 view .LVU68
+ 240 0066 019B     		ldr	r3, [sp, #4]
+ 241              	.LBE3:
+  96:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 242              		.loc 1 96 5 view .LVU69
+ 101:Core/Src/usart.c ****     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+ 243              		.loc 1 101 5 view .LVU70
+ 101:Core/Src/usart.c ****     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+ 244              		.loc 1 101 25 is_stmt 0 view .LVU71
+ 245 0068 0323     		movs	r3, #3
+ 246 006a 3393     		str	r3, [sp, #204]
+ 102:Core/Src/usart.c ****     GPIO_InitStruct.Pull = GPIO_NOPULL;
+ 247              		.loc 1 102 5 is_stmt 1 view .LVU72
+ 102:Core/Src/usart.c ****     GPIO_InitStruct.Pull = GPIO_NOPULL;
+ 248              		.loc 1 102 26 is_stmt 0 view .LVU73
+ 249 006c 0223     		movs	r3, #2
+ 250 006e 3493     		str	r3, [sp, #208]
+ 103:Core/Src/usart.c ****     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+ 251              		.loc 1 103 5 is_stmt 1 view .LVU74
+ 103:Core/Src/usart.c ****     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+ 252              		.loc 1 103 26 is_stmt 0 view .LVU75
+ 253 0070 0023     		movs	r3, #0
+ 254 0072 3593     		str	r3, [sp, #212]
+ 104:Core/Src/usart.c ****     GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
+ 255              		.loc 1 104 5 is_stmt 1 view .LVU76
+ 104:Core/Src/usart.c ****     GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
+ 256              		.loc 1 104 27 is_stmt 0 view .LVU77
+ 257 0074 3693     		str	r3, [sp, #216]
+ 105:Core/Src/usart.c ****     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+ 258              		.loc 1 105 5 is_stmt 1 view .LVU78
+ 105:Core/Src/usart.c ****     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 8
+
+
+ 259              		.loc 1 105 31 is_stmt 0 view .LVU79
+ 260 0076 0823     		movs	r3, #8
+ 261 0078 3793     		str	r3, [sp, #220]
+ 106:Core/Src/usart.c **** 
+ 262              		.loc 1 106 5 is_stmt 1 view .LVU80
+ 263 007a 33A9     		add	r1, sp, #204
+ 264 007c 0548     		ldr	r0, .L19+8
+ 265 007e FFF7FEFF 		bl	HAL_GPIO_Init
+ 266              	.LVL13:
+ 267              		.loc 1 112 1 is_stmt 0 view .LVU81
+ 268 0082 CEE7     		b	.L13
+ 269              	.L18:
+  90:Core/Src/usart.c ****     }
+ 270              		.loc 1 90 7 is_stmt 1 view .LVU82
+ 271 0084 FFF7FEFF 		bl	Error_Handler
+ 272              	.LVL14:
+ 273 0088 D5E7     		b	.L15
+ 274              	.L20:
+ 275 008a 00BF     		.align	2
+ 276              	.L19:
+ 277 008c 004C0040 		.word	1073761280
+ 278 0090 00440258 		.word	1476543488
+ 279 0094 00000258 		.word	1476526080
+ 280              		.cfi_endproc
+ 281              	.LFE145:
+ 283              		.section	.text.HAL_UART_MspDeInit,"ax",%progbits
+ 284              		.align	1
+ 285              		.global	HAL_UART_MspDeInit
+ 286              		.syntax unified
+ 287              		.thumb
+ 288              		.thumb_func
+ 290              	HAL_UART_MspDeInit:
+ 291              	.LVL15:
+ 292              	.LFB146:
+ 113:Core/Src/usart.c **** 
+ 114:Core/Src/usart.c **** void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
+ 115:Core/Src/usart.c **** {
+ 293              		.loc 1 115 1 view -0
+ 294              		.cfi_startproc
+ 295              		@ args = 0, pretend = 0, frame = 0
+ 296              		@ frame_needed = 0, uses_anonymous_args = 0
+ 297              		.loc 1 115 1 is_stmt 0 view .LVU84
+ 298 0000 08B5     		push	{r3, lr}
+ 299              	.LCFI5:
+ 300              		.cfi_def_cfa_offset 8
+ 301              		.cfi_offset 3, -8
+ 302              		.cfi_offset 14, -4
+ 116:Core/Src/usart.c **** 
+ 117:Core/Src/usart.c ****   if(uartHandle->Instance==UART4)
+ 303              		.loc 1 117 3 is_stmt 1 view .LVU85
+ 304              		.loc 1 117 16 is_stmt 0 view .LVU86
+ 305 0002 0268     		ldr	r2, [r0]
+ 306              		.loc 1 117 5 view .LVU87
+ 307 0004 074B     		ldr	r3, .L25
+ 308 0006 9A42     		cmp	r2, r3
+ 309 0008 00D0     		beq	.L24
+ 310              	.LVL16:
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 9
+
+
+ 311              	.L21:
+ 118:Core/Src/usart.c ****   {
+ 119:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_MspDeInit 0 */
+ 120:Core/Src/usart.c **** 
+ 121:Core/Src/usart.c ****   /* USER CODE END UART4_MspDeInit 0 */
+ 122:Core/Src/usart.c ****     /* Peripheral clock disable */
+ 123:Core/Src/usart.c ****     __HAL_RCC_UART4_CLK_DISABLE();
+ 124:Core/Src/usart.c **** 
+ 125:Core/Src/usart.c ****     /**UART4 GPIO Configuration
+ 126:Core/Src/usart.c ****     PA0     ------> UART4_TX
+ 127:Core/Src/usart.c ****     PA1     ------> UART4_RX
+ 128:Core/Src/usart.c ****     */
+ 129:Core/Src/usart.c ****     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0|GPIO_PIN_1);
+ 130:Core/Src/usart.c **** 
+ 131:Core/Src/usart.c ****   /* USER CODE BEGIN UART4_MspDeInit 1 */
+ 132:Core/Src/usart.c **** 
+ 133:Core/Src/usart.c ****   /* USER CODE END UART4_MspDeInit 1 */
+ 134:Core/Src/usart.c ****   }
+ 135:Core/Src/usart.c **** }
+ 312              		.loc 1 135 1 view .LVU88
+ 313 000a 08BD     		pop	{r3, pc}
+ 314              	.LVL17:
+ 315              	.L24:
+ 123:Core/Src/usart.c **** 
+ 316              		.loc 1 123 5 is_stmt 1 view .LVU89
+ 317 000c 064A     		ldr	r2, .L25+4
+ 318 000e D2F8E830 		ldr	r3, [r2, #232]
+ 319 0012 23F40023 		bic	r3, r3, #524288
+ 320 0016 C2F8E830 		str	r3, [r2, #232]
+ 129:Core/Src/usart.c **** 
+ 321              		.loc 1 129 5 view .LVU90
+ 322 001a 0321     		movs	r1, #3
+ 323 001c 0348     		ldr	r0, .L25+8
+ 324              	.LVL18:
+ 129:Core/Src/usart.c **** 
+ 325              		.loc 1 129 5 is_stmt 0 view .LVU91
+ 326 001e FFF7FEFF 		bl	HAL_GPIO_DeInit
+ 327              	.LVL19:
+ 328              		.loc 1 135 1 view .LVU92
+ 329 0022 F2E7     		b	.L21
+ 330              	.L26:
+ 331              		.align	2
+ 332              	.L25:
+ 333 0024 004C0040 		.word	1073761280
+ 334 0028 00440258 		.word	1476543488
+ 335 002c 00000258 		.word	1476526080
+ 336              		.cfi_endproc
+ 337              	.LFE146:
+ 339              		.global	huart4
+ 340              		.section	.bss.huart4,"aw",%nobits
+ 341              		.align	2
+ 344              	huart4:
+ 345 0000 00000000 		.space	148
+ 345      00000000 
+ 345      00000000 
+ 345      00000000 
+ 345      00000000 
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 10
+
+
+ 346              		.text
+ 347              	.Letext0:
+ 348              		.file 2 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 349              		.file 3 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 350              		.file 4 "Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h743xx.h"
+ 351              		.file 5 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_def.h"
+ 352              		.file 6 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc_ex.h"
+ 353              		.file 7 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio.h"
+ 354              		.file 8 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_dma.h"
+ 355              		.file 9 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h"
+ 356              		.file 10 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h"
+ 357              		.file 11 "Core/Inc/usart.h"
+ 358              		.file 12 "Core/Inc/main.h"
+ 359              		.file 13 "<built-in>"
+ARM GAS  C:\Users\12491\AppData\Local\Temp\cc436DvY.s 			page 11
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 usart.c
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:20     .text.MX_UART4_Init:00000000 $t
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:26     .text.MX_UART4_Init:00000000 MX_UART4_Init
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:134    .text.MX_UART4_Init:00000060 $d
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:344    .bss.huart4:00000000 huart4
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:140    .text.HAL_UART_MspInit:00000000 $t
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:146    .text.HAL_UART_MspInit:00000000 HAL_UART_MspInit
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:277    .text.HAL_UART_MspInit:0000008c $d
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:284    .text.HAL_UART_MspDeInit:00000000 $t
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:290    .text.HAL_UART_MspDeInit:00000000 HAL_UART_MspDeInit
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:333    .text.HAL_UART_MspDeInit:00000024 $d
+C:\Users\12491\AppData\Local\Temp\cc436DvY.s:341    .bss.huart4:00000000 $d
+
+UNDEFINED SYMBOLS
+HAL_UART_Init
+HAL_UARTEx_SetTxFifoThreshold
+HAL_UARTEx_SetRxFifoThreshold
+HAL_UARTEx_DisableFifoMode
+Error_Handler
+memset
+HAL_RCCEx_PeriphCLKConfig
+HAL_GPIO_Init
+HAL_GPIO_DeInit
