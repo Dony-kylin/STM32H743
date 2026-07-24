@@ -1,0 +1,530 @@
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 1
+
+
+   1              		.cpu cortex-m7
+   2              		.arch armv7e-m
+   3              		.fpu fpv5-d16
+   4              		.eabi_attribute 28, 1
+   5              		.eabi_attribute 20, 1
+   6              		.eabi_attribute 21, 1
+   7              		.eabi_attribute 23, 3
+   8              		.eabi_attribute 24, 1
+   9              		.eabi_attribute 25, 1
+  10              		.eabi_attribute 26, 1
+  11              		.eabi_attribute 30, 1
+  12              		.eabi_attribute 34, 1
+  13              		.eabi_attribute 18, 4
+  14              		.file	"freertos.c"
+  15              		.text
+  16              	.Ltext0:
+  17              		.cfi_sections	.debug_frame
+  18              		.file 1 "Core/Src/freertos.c"
+  19              		.section	.text.StartTask_DataProcess,"ax",%progbits
+  20              		.align	1
+  21              		.global	StartTask_DataProcess
+  22              		.syntax unified
+  23              		.thumb
+  24              		.thumb_func
+  26              	StartTask_DataProcess:
+  27              	.LVL0:
+  28              	.LFB149:
+   1:Core/Src/freertos.c **** /* USER CODE BEGIN Header */
+   2:Core/Src/freertos.c **** /**
+   3:Core/Src/freertos.c ****   ******************************************************************************
+   4:Core/Src/freertos.c ****   * File Name          : freertos.c
+   5:Core/Src/freertos.c ****   * Description        : Code for freertos applications
+   6:Core/Src/freertos.c ****   ******************************************************************************
+   7:Core/Src/freertos.c ****   * @attention
+   8:Core/Src/freertos.c ****   *
+   9:Core/Src/freertos.c ****   * Copyright (c) 2026 STMicroelectronics.
+  10:Core/Src/freertos.c ****   * All rights reserved.
+  11:Core/Src/freertos.c ****   *
+  12:Core/Src/freertos.c ****   * This software is licensed under terms that can be found in the LICENSE file
+  13:Core/Src/freertos.c ****   * in the root directory of this software component.
+  14:Core/Src/freertos.c ****   * If no LICENSE file comes with this software, it is provided AS-IS.
+  15:Core/Src/freertos.c ****   *
+  16:Core/Src/freertos.c ****   ******************************************************************************
+  17:Core/Src/freertos.c ****   */
+  18:Core/Src/freertos.c **** /* USER CODE END Header */
+  19:Core/Src/freertos.c **** 
+  20:Core/Src/freertos.c **** /* Includes ------------------------------------------------------------------*/
+  21:Core/Src/freertos.c **** #include "FreeRTOS.h"
+  22:Core/Src/freertos.c **** #include "task.h"
+  23:Core/Src/freertos.c **** #include "main.h"
+  24:Core/Src/freertos.c **** #include "cmsis_os.h"
+  25:Core/Src/freertos.c **** 
+  26:Core/Src/freertos.c **** /* Private includes ----------------------------------------------------------*/
+  27:Core/Src/freertos.c **** /* USER CODE BEGIN Includes */
+  28:Core/Src/freertos.c **** #include "ad7606.h"
+  29:Core/Src/freertos.c **** /* USER CODE END Includes */
+  30:Core/Src/freertos.c **** 
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 2
+
+
+  31:Core/Src/freertos.c **** /* Private typedef -----------------------------------------------------------*/
+  32:Core/Src/freertos.c **** /* USER CODE BEGIN PTD */
+  33:Core/Src/freertos.c **** 
+  34:Core/Src/freertos.c **** /* USER CODE END PTD */
+  35:Core/Src/freertos.c **** 
+  36:Core/Src/freertos.c **** /* Private define ------------------------------------------------------------*/
+  37:Core/Src/freertos.c **** /* USER CODE BEGIN PD */
+  38:Core/Src/freertos.c **** 
+  39:Core/Src/freertos.c **** /* USER CODE END PD */
+  40:Core/Src/freertos.c **** 
+  41:Core/Src/freertos.c **** /* Private macro -------------------------------------------------------------*/
+  42:Core/Src/freertos.c **** /* USER CODE BEGIN PM */
+  43:Core/Src/freertos.c **** 
+  44:Core/Src/freertos.c **** /* USER CODE END PM */
+  45:Core/Src/freertos.c **** 
+  46:Core/Src/freertos.c **** /* Private variables ---------------------------------------------------------*/
+  47:Core/Src/freertos.c **** /* USER CODE BEGIN Variables */
+  48:Core/Src/freertos.c **** osSemaphoreId_t AdcSemaphoreHandle;         /* ADC转换完成信号量 */
+  49:Core/Src/freertos.c **** /* USER CODE END Variables */
+  50:Core/Src/freertos.c **** /* Definitions for Task_DataProces */
+  51:Core/Src/freertos.c **** osThreadId_t Task_DataProcesHandle;
+  52:Core/Src/freertos.c **** const osThreadAttr_t Task_DataProces_attributes = {
+  53:Core/Src/freertos.c ****   .name = "Task_DataProces",
+  54:Core/Src/freertos.c ****   .stack_size = 128 * 4,
+  55:Core/Src/freertos.c ****   .priority = (osPriority_t) osPriorityNormal,
+  56:Core/Src/freertos.c **** };
+  57:Core/Src/freertos.c **** /* Definitions for Task_Lcd */
+  58:Core/Src/freertos.c **** osThreadId_t Task_LcdHandle;
+  59:Core/Src/freertos.c **** const osThreadAttr_t Task_Lcd_attributes = {
+  60:Core/Src/freertos.c ****   .name = "Task_Lcd",
+  61:Core/Src/freertos.c ****   .stack_size = 128 * 4,
+  62:Core/Src/freertos.c ****   .priority = (osPriority_t) osPriorityLow,
+  63:Core/Src/freertos.c **** };
+  64:Core/Src/freertos.c **** 
+  65:Core/Src/freertos.c **** /* Private function prototypes -----------------------------------------------*/
+  66:Core/Src/freertos.c **** /* USER CODE BEGIN FunctionPrototypes */
+  67:Core/Src/freertos.c **** 
+  68:Core/Src/freertos.c **** /* USER CODE END FunctionPrototypes */
+  69:Core/Src/freertos.c **** 
+  70:Core/Src/freertos.c **** void StartTask_DataProcess(void *argument);
+  71:Core/Src/freertos.c **** void StartTask_Lcd(void *argument);
+  72:Core/Src/freertos.c **** 
+  73:Core/Src/freertos.c **** void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+  74:Core/Src/freertos.c **** 
+  75:Core/Src/freertos.c **** /**
+  76:Core/Src/freertos.c ****   * @brief  FreeRTOS initialization
+  77:Core/Src/freertos.c ****   * @param  None
+  78:Core/Src/freertos.c ****   * @retval None
+  79:Core/Src/freertos.c ****   */
+  80:Core/Src/freertos.c **** void MX_FREERTOS_Init(void) {
+  81:Core/Src/freertos.c ****   /* USER CODE BEGIN Init */
+  82:Core/Src/freertos.c **** 
+  83:Core/Src/freertos.c ****   /* USER CODE END Init */
+  84:Core/Src/freertos.c **** 
+  85:Core/Src/freertos.c ****   /* USER CODE BEGIN RTOS_MUTEX */
+  86:Core/Src/freertos.c ****   /* add mutexes, ... */
+  87:Core/Src/freertos.c ****   /* USER CODE END RTOS_MUTEX */
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 3
+
+
+  88:Core/Src/freertos.c **** 
+  89:Core/Src/freertos.c ****   /* USER CODE BEGIN RTOS_SEMAPHORES */
+  90:Core/Src/freertos.c ****   /* 创建二进制信号量: 初始为0 (不可用), 最大计数1 */
+  91:Core/Src/freertos.c ****   AdcSemaphoreHandle = osSemaphoreNew(1, 0, NULL);
+  92:Core/Src/freertos.c ****   /* USER CODE END RTOS_SEMAPHORES */
+  93:Core/Src/freertos.c **** 
+  94:Core/Src/freertos.c ****   /* USER CODE BEGIN RTOS_TIMERS */
+  95:Core/Src/freertos.c ****   /* start timers, add new ones, ... */
+  96:Core/Src/freertos.c ****   /* USER CODE END RTOS_TIMERS */
+  97:Core/Src/freertos.c **** 
+  98:Core/Src/freertos.c ****   /* USER CODE BEGIN RTOS_QUEUES */
+  99:Core/Src/freertos.c ****   /* add queues, ... */
+ 100:Core/Src/freertos.c ****   /* USER CODE END RTOS_QUEUES */
+ 101:Core/Src/freertos.c **** 
+ 102:Core/Src/freertos.c ****   /* Create the thread(s) */
+ 103:Core/Src/freertos.c ****   /* creation of Task_DataProces */
+ 104:Core/Src/freertos.c ****   Task_DataProcesHandle = osThreadNew(StartTask_DataProcess, NULL, &Task_DataProces_attributes);
+ 105:Core/Src/freertos.c **** 
+ 106:Core/Src/freertos.c ****   /* creation of Task_Lcd */
+ 107:Core/Src/freertos.c ****   Task_LcdHandle = osThreadNew(StartTask_Lcd, NULL, &Task_Lcd_attributes);
+ 108:Core/Src/freertos.c **** 
+ 109:Core/Src/freertos.c ****   /* USER CODE BEGIN RTOS_THREADS */
+ 110:Core/Src/freertos.c ****   /* add threads, ... */
+ 111:Core/Src/freertos.c ****   /* USER CODE END RTOS_THREADS */
+ 112:Core/Src/freertos.c **** 
+ 113:Core/Src/freertos.c ****   /* USER CODE BEGIN RTOS_EVENTS */
+ 114:Core/Src/freertos.c ****   /* add events, ... */
+ 115:Core/Src/freertos.c ****   /* USER CODE END RTOS_EVENTS */
+ 116:Core/Src/freertos.c **** 
+ 117:Core/Src/freertos.c **** }
+ 118:Core/Src/freertos.c **** 
+ 119:Core/Src/freertos.c **** /* USER CODE BEGIN Header_StartTask_DataProcess */
+ 120:Core/Src/freertos.c **** /**
+ 121:Core/Src/freertos.c ****   * @brief  Function implementing the Task_DataProces thread.
+ 122:Core/Src/freertos.c ****   *         等待BUSY中断信号量 → 读取FMC数据 → 存入缓冲区
+ 123:Core/Src/freertos.c ****   * @param  argument: Not used
+ 124:Core/Src/freertos.c ****   * @retval None
+ 125:Core/Src/freertos.c ****   */
+ 126:Core/Src/freertos.c **** /* USER CODE END Header_StartTask_DataProcess */
+ 127:Core/Src/freertos.c **** void StartTask_DataProcess(void *argument)
+ 128:Core/Src/freertos.c **** {
+  29              		.loc 1 128 1 view -0
+  30              		.cfi_startproc
+  31              		@ args = 0, pretend = 0, frame = 40
+  32              		@ frame_needed = 0, uses_anonymous_args = 0
+  33              		.loc 1 128 1 is_stmt 0 view .LVU1
+  34 0000 00B5     		push	{lr}
+  35              	.LCFI0:
+  36              		.cfi_def_cfa_offset 4
+  37              		.cfi_offset 14, -4
+  38 0002 8BB0     		sub	sp, sp, #44
+  39              	.LCFI1:
+  40              		.cfi_def_cfa_offset 48
+ 129:Core/Src/freertos.c ****   /* USER CODE BEGIN StartTask_DataProcess */
+ 130:Core/Src/freertos.c ****   uint16_t adc_raw[AD7606_NUM_CHANNELS];
+  41              		.loc 1 130 3 is_stmt 1 view .LVU2
+ 131:Core/Src/freertos.c ****   AD7606_Frame frame;
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 4
+
+
+  42              		.loc 1 131 3 view .LVU3
+ 132:Core/Src/freertos.c **** 
+ 133:Core/Src/freertos.c ****   /* 初始化AD7606: 无过采样, ±5V量程 */
+ 134:Core/Src/freertos.c ****   AD7606_Init(AD7606_OS_NONE, AD7606_RANGE_5V);
+  43              		.loc 1 134 3 view .LVU4
+  44 0004 0021     		movs	r1, #0
+  45 0006 0846     		mov	r0, r1
+  46              	.LVL1:
+  47              		.loc 1 134 3 is_stmt 0 view .LVU5
+  48 0008 FFF7FEFF 		bl	AD7606_Init
+  49              	.LVL2:
+ 135:Core/Src/freertos.c **** 
+ 136:Core/Src/freertos.c ****   /* 启动第一次转换 */
+ 137:Core/Src/freertos.c ****   AD7606_StartConversion();
+  50              		.loc 1 137 3 is_stmt 1 view .LVU6
+  51 000c FFF7FEFF 		bl	AD7606_StartConversion
+  52              	.LVL3:
+  53 0010 11E0     		b	.L4
+  54              	.LVL4:
+  55              	.L3:
+  56              	.LBB2:
+ 138:Core/Src/freertos.c **** 
+ 139:Core/Src/freertos.c ****   /* Infinite loop */
+ 140:Core/Src/freertos.c ****   for(;;)
+ 141:Core/Src/freertos.c ****   {
+ 142:Core/Src/freertos.c ****     /* 等待BUSY中断释放信号量 (转换完成) */
+ 143:Core/Src/freertos.c ****     osSemaphoreAcquire(AdcSemaphoreHandle, osWaitForever);
+ 144:Core/Src/freertos.c **** 
+ 145:Core/Src/freertos.c ****     /* 通过FMC并行读取8通道数据 */
+ 146:Core/Src/freertos.c ****     AD7606_ReadChannels(adc_raw);
+ 147:Core/Src/freertos.c **** 
+ 148:Core/Src/freertos.c ****     /* 组装数据帧 (记录时间戳) */
+ 149:Core/Src/freertos.c ****     for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+ 150:Core/Src/freertos.c ****     {
+ 151:Core/Src/freertos.c ****       frame.channels[i] = adc_raw[i];
+  57              		.loc 1 151 7 view .LVU7
+  58              		.loc 1 151 34 is_stmt 0 view .LVU8
+  59 0012 0AAA     		add	r2, sp, #40
+  60 0014 02EB4302 		add	r2, r2, r3, lsl #1
+  61 0018 32F8101C 		ldrh	r1, [r2, #-16]
+  62              		.loc 1 151 25 view .LVU9
+  63 001c 22F8241C 		strh	r1, [r2, #-36]	@ movhi
+ 149:Core/Src/freertos.c ****     {
+  64              		.loc 1 149 47 is_stmt 1 discriminator 3 view .LVU10
+  65 0020 0133     		adds	r3, r3, #1
+  66              	.LVL5:
+  67              	.L2:
+ 149:Core/Src/freertos.c ****     {
+  68              		.loc 1 149 23 discriminator 1 view .LVU11
+  69 0022 072B     		cmp	r3, #7
+  70 0024 F5DD     		ble	.L3
+  71              	.LBE2:
+ 152:Core/Src/freertos.c ****     }
+ 153:Core/Src/freertos.c ****     frame.timestamp = HAL_GetTick();
+  72              		.loc 1 153 5 view .LVU12
+  73              		.loc 1 153 23 is_stmt 0 view .LVU13
+  74 0026 FFF7FEFF 		bl	HAL_GetTick
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 5
+
+
+  75              	.LVL6:
+  76              		.loc 1 153 21 discriminator 1 view .LVU14
+  77 002a 0590     		str	r0, [sp, #20]
+ 154:Core/Src/freertos.c **** 
+ 155:Core/Src/freertos.c ****     /* ==================================================== */
+ 156:Core/Src/freertos.c ****     /* TODO: 在此添加数据处理逻辑                            */
+ 157:Core/Src/freertos.c ****     /* 例如: 存入环形缓冲区 / 通知LCD任务显示波形            */
+ 158:Core/Src/freertos.c ****     /* ==================================================== */
+ 159:Core/Src/freertos.c ****     (void)frame;  /* 消除未使用警告，实现处理逻辑后可删除 */
+  78              		.loc 1 159 5 is_stmt 1 view .LVU15
+ 160:Core/Src/freertos.c **** 
+ 161:Core/Src/freertos.c ****     /* 启动下一次转换 (连续采集) */
+ 162:Core/Src/freertos.c ****     AD7606_StartConversion();
+  79              		.loc 1 162 5 view .LVU16
+  80 002c FFF7FEFF 		bl	AD7606_StartConversion
+  81              	.LVL7:
+ 163:Core/Src/freertos.c **** 
+ 164:Core/Src/freertos.c ****     /* 让低优先级任务有机会运行 */
+ 165:Core/Src/freertos.c ****     osDelay(0);
+  82              		.loc 1 165 5 view .LVU17
+  83 0030 0020     		movs	r0, #0
+  84 0032 FFF7FEFF 		bl	osDelay
+  85              	.LVL8:
+ 140:Core/Src/freertos.c ****   {
+  86              		.loc 1 140 3 view .LVU18
+  87              	.L4:
+ 140:Core/Src/freertos.c ****   {
+  88              		.loc 1 140 3 view .LVU19
+ 143:Core/Src/freertos.c **** 
+  89              		.loc 1 143 5 view .LVU20
+  90 0036 4FF0FF31 		mov	r1, #-1
+  91 003a 044B     		ldr	r3, .L6
+  92 003c 1868     		ldr	r0, [r3]
+  93 003e FFF7FEFF 		bl	osSemaphoreAcquire
+  94              	.LVL9:
+ 146:Core/Src/freertos.c **** 
+  95              		.loc 1 146 5 view .LVU21
+  96 0042 06A8     		add	r0, sp, #24
+  97 0044 FFF7FEFF 		bl	AD7606_ReadChannels
+  98              	.LVL10:
+ 149:Core/Src/freertos.c ****     {
+  99              		.loc 1 149 5 view .LVU22
+ 100              	.LBB3:
+ 149:Core/Src/freertos.c ****     {
+ 101              		.loc 1 149 10 view .LVU23
+ 149:Core/Src/freertos.c ****     {
+ 102              		.loc 1 149 14 is_stmt 0 view .LVU24
+ 103 0048 0023     		movs	r3, #0
+ 149:Core/Src/freertos.c ****     {
+ 104              		.loc 1 149 5 view .LVU25
+ 105 004a EAE7     		b	.L2
+ 106              	.L7:
+ 107              		.align	2
+ 108              	.L6:
+ 109 004c 00000000 		.word	AdcSemaphoreHandle
+ 110              	.LBE3:
+ 111              		.cfi_endproc
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 6
+
+
+ 112              	.LFE149:
+ 114              		.section	.text.StartTask_Lcd,"ax",%progbits
+ 115              		.align	1
+ 116              		.global	StartTask_Lcd
+ 117              		.syntax unified
+ 118              		.thumb
+ 119              		.thumb_func
+ 121              	StartTask_Lcd:
+ 122              	.LFB150:
+ 166:Core/Src/freertos.c ****   }
+ 167:Core/Src/freertos.c ****   /* USER CODE END StartTask_DataProcess */
+ 168:Core/Src/freertos.c **** }
+ 169:Core/Src/freertos.c **** 
+ 170:Core/Src/freertos.c **** /* USER CODE BEGIN Header_StartTask_Lcd */
+ 171:Core/Src/freertos.c **** /**
+ 172:Core/Src/freertos.c **** * @brief Function implementing the Task_Lcd thread.
+ 173:Core/Src/freertos.c **** * @param argument: Not used
+ 174:Core/Src/freertos.c **** * @retval None
+ 175:Core/Src/freertos.c **** */
+ 176:Core/Src/freertos.c **** /* USER CODE END Header_StartTask_Lcd */
+ 177:Core/Src/freertos.c **** void StartTask_Lcd(void *argument)
+ 178:Core/Src/freertos.c **** {
+ 123              		.loc 1 178 1 is_stmt 1 view -0
+ 124              		.cfi_startproc
+ 125              		@ Volatile: function does not return.
+ 126              		@ args = 0, pretend = 0, frame = 0
+ 127              		@ frame_needed = 0, uses_anonymous_args = 0
+ 128              	.LVL11:
+ 129              		.loc 1 178 1 is_stmt 0 view .LVU27
+ 130 0000 08B5     		push	{r3, lr}
+ 131              	.LCFI2:
+ 132              		.cfi_def_cfa_offset 8
+ 133              		.cfi_offset 3, -8
+ 134              		.cfi_offset 14, -4
+ 135              	.LVL12:
+ 136              	.L9:
+ 179:Core/Src/freertos.c ****   /* USER CODE BEGIN StartTask_Lcd */
+ 180:Core/Src/freertos.c ****   /* Infinite loop */
+ 181:Core/Src/freertos.c ****   for(;;)
+ 137              		.loc 1 181 3 is_stmt 1 view .LVU28
+ 182:Core/Src/freertos.c ****   {
+ 183:Core/Src/freertos.c ****     osDelay(1);
+ 138              		.loc 1 183 5 discriminator 1 view .LVU29
+ 139 0002 0120     		movs	r0, #1
+ 140 0004 FFF7FEFF 		bl	osDelay
+ 141              	.LVL13:
+ 181:Core/Src/freertos.c ****   {
+ 142              		.loc 1 181 3 view .LVU30
+ 143 0008 FBE7     		b	.L9
+ 144              		.cfi_endproc
+ 145              	.LFE150:
+ 147              		.section	.text.MX_FREERTOS_Init,"ax",%progbits
+ 148              		.align	1
+ 149              		.global	MX_FREERTOS_Init
+ 150              		.syntax unified
+ 151              		.thumb
+ 152              		.thumb_func
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 7
+
+
+ 154              	MX_FREERTOS_Init:
+ 155              	.LFB148:
+  80:Core/Src/freertos.c ****   /* USER CODE BEGIN Init */
+ 156              		.loc 1 80 29 view -0
+ 157              		.cfi_startproc
+ 158              		@ args = 0, pretend = 0, frame = 0
+ 159              		@ frame_needed = 0, uses_anonymous_args = 0
+ 160 0000 08B5     		push	{r3, lr}
+ 161              	.LCFI3:
+ 162              		.cfi_def_cfa_offset 8
+ 163              		.cfi_offset 3, -8
+ 164              		.cfi_offset 14, -4
+  91:Core/Src/freertos.c ****   /* USER CODE END RTOS_SEMAPHORES */
+ 165              		.loc 1 91 3 view .LVU32
+  91:Core/Src/freertos.c ****   /* USER CODE END RTOS_SEMAPHORES */
+ 166              		.loc 1 91 24 is_stmt 0 view .LVU33
+ 167 0002 0022     		movs	r2, #0
+ 168 0004 1146     		mov	r1, r2
+ 169 0006 0120     		movs	r0, #1
+ 170 0008 FFF7FEFF 		bl	osSemaphoreNew
+ 171              	.LVL14:
+  91:Core/Src/freertos.c ****   /* USER CODE END RTOS_SEMAPHORES */
+ 172              		.loc 1 91 22 discriminator 1 view .LVU34
+ 173 000c 084B     		ldr	r3, .L13
+ 174 000e 1860     		str	r0, [r3]
+ 104:Core/Src/freertos.c **** 
+ 175              		.loc 1 104 3 is_stmt 1 view .LVU35
+ 104:Core/Src/freertos.c **** 
+ 176              		.loc 1 104 27 is_stmt 0 view .LVU36
+ 177 0010 084A     		ldr	r2, .L13+4
+ 178 0012 0021     		movs	r1, #0
+ 179 0014 0848     		ldr	r0, .L13+8
+ 180 0016 FFF7FEFF 		bl	osThreadNew
+ 181              	.LVL15:
+ 104:Core/Src/freertos.c **** 
+ 182              		.loc 1 104 25 discriminator 1 view .LVU37
+ 183 001a 084B     		ldr	r3, .L13+12
+ 184 001c 1860     		str	r0, [r3]
+ 107:Core/Src/freertos.c **** 
+ 185              		.loc 1 107 3 is_stmt 1 view .LVU38
+ 107:Core/Src/freertos.c **** 
+ 186              		.loc 1 107 20 is_stmt 0 view .LVU39
+ 187 001e 084A     		ldr	r2, .L13+16
+ 188 0020 0021     		movs	r1, #0
+ 189 0022 0848     		ldr	r0, .L13+20
+ 190 0024 FFF7FEFF 		bl	osThreadNew
+ 191              	.LVL16:
+ 107:Core/Src/freertos.c **** 
+ 192              		.loc 1 107 18 discriminator 1 view .LVU40
+ 193 0028 074B     		ldr	r3, .L13+24
+ 194 002a 1860     		str	r0, [r3]
+ 117:Core/Src/freertos.c **** 
+ 195              		.loc 1 117 1 view .LVU41
+ 196 002c 08BD     		pop	{r3, pc}
+ 197              	.L14:
+ 198 002e 00BF     		.align	2
+ 199              	.L13:
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 8
+
+
+ 200 0030 00000000 		.word	AdcSemaphoreHandle
+ 201 0034 00000000 		.word	Task_DataProces_attributes
+ 202 0038 00000000 		.word	StartTask_DataProcess
+ 203 003c 00000000 		.word	Task_DataProcesHandle
+ 204 0040 00000000 		.word	Task_Lcd_attributes
+ 205 0044 00000000 		.word	StartTask_Lcd
+ 206 0048 00000000 		.word	Task_LcdHandle
+ 207              		.cfi_endproc
+ 208              	.LFE148:
+ 210              		.global	Task_Lcd_attributes
+ 211              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 212              		.align	2
+ 213              	.LC0:
+ 214 0000 5461736B 		.ascii	"Task_Lcd\000"
+ 214      5F4C6364 
+ 214      00
+ 215              		.section	.rodata.Task_Lcd_attributes,"a"
+ 216              		.align	2
+ 219              	Task_Lcd_attributes:
+ 220 0000 00000000 		.word	.LC0
+ 221 0004 00000000 		.space	16
+ 221      00000000 
+ 221      00000000 
+ 221      00000000 
+ 222 0014 00020000 		.word	512
+ 223 0018 08000000 		.word	8
+ 224 001c 00000000 		.space	8
+ 224      00000000 
+ 225              		.global	Task_LcdHandle
+ 226              		.section	.bss.Task_LcdHandle,"aw",%nobits
+ 227              		.align	2
+ 230              	Task_LcdHandle:
+ 231 0000 00000000 		.space	4
+ 232              		.global	Task_DataProces_attributes
+ 233              		.section	.rodata.str1.4
+ 234 0009 000000   		.align	2
+ 235              	.LC1:
+ 236 000c 5461736B 		.ascii	"Task_DataProces\000"
+ 236      5F446174 
+ 236      6150726F 
+ 236      63657300 
+ 237              		.section	.rodata.Task_DataProces_attributes,"a"
+ 238              		.align	2
+ 241              	Task_DataProces_attributes:
+ 242 0000 0C000000 		.word	.LC1
+ 243 0004 00000000 		.space	16
+ 243      00000000 
+ 243      00000000 
+ 243      00000000 
+ 244 0014 00020000 		.word	512
+ 245 0018 18000000 		.word	24
+ 246 001c 00000000 		.space	8
+ 246      00000000 
+ 247              		.global	Task_DataProcesHandle
+ 248              		.section	.bss.Task_DataProcesHandle,"aw",%nobits
+ 249              		.align	2
+ 252              	Task_DataProcesHandle:
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 9
+
+
+ 253 0000 00000000 		.space	4
+ 254              		.global	AdcSemaphoreHandle
+ 255              		.section	.bss.AdcSemaphoreHandle,"aw",%nobits
+ 256              		.align	2
+ 259              	AdcSemaphoreHandle:
+ 260 0000 00000000 		.space	4
+ 261              		.text
+ 262              	.Letext0:
+ 263              		.file 2 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 264              		.file 3 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 265              		.file 4 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h"
+ 266              		.file 5 "Expand/Inc/ad7606.h"
+ 267              		.file 6 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h"
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s 			page 10
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 freertos.c
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:20     .text.StartTask_DataProcess:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:26     .text.StartTask_DataProcess:00000000 StartTask_DataProcess
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:109    .text.StartTask_DataProcess:0000004c $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:259    .bss.AdcSemaphoreHandle:00000000 AdcSemaphoreHandle
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:115    .text.StartTask_Lcd:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:121    .text.StartTask_Lcd:00000000 StartTask_Lcd
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:148    .text.MX_FREERTOS_Init:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:154    .text.MX_FREERTOS_Init:00000000 MX_FREERTOS_Init
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:200    .text.MX_FREERTOS_Init:00000030 $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:241    .rodata.Task_DataProces_attributes:00000000 Task_DataProces_attributes
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:252    .bss.Task_DataProcesHandle:00000000 Task_DataProcesHandle
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:219    .rodata.Task_Lcd_attributes:00000000 Task_Lcd_attributes
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:230    .bss.Task_LcdHandle:00000000 Task_LcdHandle
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:212    .rodata.str1.4:00000000 $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:216    .rodata.Task_Lcd_attributes:00000000 $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:227    .bss.Task_LcdHandle:00000000 $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:238    .rodata.Task_DataProces_attributes:00000000 $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:249    .bss.Task_DataProcesHandle:00000000 $d
+C:\Users\12491\AppData\Local\Temp\ccT7ZTjy.s:256    .bss.AdcSemaphoreHandle:00000000 $d
+
+UNDEFINED SYMBOLS
+AD7606_Init
+AD7606_StartConversion
+HAL_GetTick
+osDelay
+osSemaphoreAcquire
+AD7606_ReadChannels
+osSemaphoreNew
+osThreadNew

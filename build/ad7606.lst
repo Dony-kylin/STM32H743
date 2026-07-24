@@ -1,0 +1,477 @@
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 1
+
+
+   1              		.cpu cortex-m7
+   2              		.arch armv7e-m
+   3              		.fpu fpv5-d16
+   4              		.eabi_attribute 28, 1
+   5              		.eabi_attribute 20, 1
+   6              		.eabi_attribute 21, 1
+   7              		.eabi_attribute 23, 3
+   8              		.eabi_attribute 24, 1
+   9              		.eabi_attribute 25, 1
+  10              		.eabi_attribute 26, 1
+  11              		.eabi_attribute 30, 1
+  12              		.eabi_attribute 34, 1
+  13              		.eabi_attribute 18, 4
+  14              		.file	"ad7606.c"
+  15              		.text
+  16              	.Ltext0:
+  17              		.cfi_sections	.debug_frame
+  18              		.file 1 "Expand/Src/ad7606.c"
+  19              		.section	.text.AD7606_Init,"ax",%progbits
+  20              		.align	1
+  21              		.global	AD7606_Init
+  22              		.syntax unified
+  23              		.thumb
+  24              		.thumb_func
+  26              	AD7606_Init:
+  27              	.LVL0:
+  28              	.LFB149:
+   1:Expand/Src/ad7606.c **** /* USER CODE BEGIN Header */
+   2:Expand/Src/ad7606.c **** /**
+   3:Expand/Src/ad7606.c ****   ******************************************************************************
+   4:Expand/Src/ad7606.c ****   * @file           : ad7606.c
+   5:Expand/Src/ad7606.c ****   * @brief          : AD7606 并行ADC驱动 (FMC接口 + FreeRTOS)
+   6:Expand/Src/ad7606.c ****   ******************************************************************************
+   7:Expand/Src/ad7606.c ****   */
+   8:Expand/Src/ad7606.c **** /* USER CODE END Header */
+   9:Expand/Src/ad7606.c **** 
+  10:Expand/Src/ad7606.c **** /* Includes ------------------------------------------------------------------*/
+  11:Expand/Src/ad7606.c **** #include "ad7606.h"
+  12:Expand/Src/ad7606.c **** #include "cmsis_os.h"      /* CMSIS RTOS v2 API */
+  13:Expand/Src/ad7606.c **** 
+  14:Expand/Src/ad7606.c **** /* External variables --------------------------------------------------------*/
+  15:Expand/Src/ad7606.c **** /* freertos.c 中定义的信号量句柄 */
+  16:Expand/Src/ad7606.c **** extern osSemaphoreId_t AdcSemaphoreHandle;
+  17:Expand/Src/ad7606.c **** 
+  18:Expand/Src/ad7606.c **** /* ======================== HAL 中断回调 ======================== */
+  19:Expand/Src/ad7606.c **** 
+  20:Expand/Src/ad7606.c **** /**
+  21:Expand/Src/ad7606.c ****   * @brief  GPIO EXTI 中断回调 (由 HAL_GPIO_EXTI_IRQHandler 调用)
+  22:Expand/Src/ad7606.c ****   * @param  GPIO_Pin  触发中断的引脚
+  23:Expand/Src/ad7606.c ****   * @retval None
+  24:Expand/Src/ad7606.c ****   */
+  25:Expand/Src/ad7606.c **** void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+  26:Expand/Src/ad7606.c **** {
+  27:Expand/Src/ad7606.c ****     if (GPIO_Pin == AD7606_BUSY_Pin)
+  28:Expand/Src/ad7606.c ****     {
+  29:Expand/Src/ad7606.c ****         /* BUSY下降沿 → 转换完成, 通知采集任务 */
+  30:Expand/Src/ad7606.c ****         AD7606_ConvCompleteCallback();
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 2
+
+
+  31:Expand/Src/ad7606.c ****     }
+  32:Expand/Src/ad7606.c **** }
+  33:Expand/Src/ad7606.c **** 
+  34:Expand/Src/ad7606.c **** /* ======================== 初始化 ======================== */
+  35:Expand/Src/ad7606.c **** 
+  36:Expand/Src/ad7606.c **** /**
+  37:Expand/Src/ad7606.c ****   * @brief  初始化AD7606：复位芯片，配置过采样和量程
+  38:Expand/Src/ad7606.c ****   * @param  os   过采样模式 (AD7606_OS_NONE ~ AD7606_OS_64X)
+  39:Expand/Src/ad7606.c ****   * @param  range 量程 (±5V 或 ±10V)
+  40:Expand/Src/ad7606.c ****   * @retval None
+  41:Expand/Src/ad7606.c ****   */
+  42:Expand/Src/ad7606.c **** void AD7606_Init(AD7606_OSMode os, AD7606_Range range)
+  43:Expand/Src/ad7606.c **** {
+  29              		.loc 1 43 1 view -0
+  30              		.cfi_startproc
+  31              		@ args = 0, pretend = 0, frame = 0
+  32              		@ frame_needed = 0, uses_anonymous_args = 0
+  33              		.loc 1 43 1 is_stmt 0 view .LVU1
+  34 0000 70B5     		push	{r4, r5, r6, lr}
+  35              	.LCFI0:
+  36              		.cfi_def_cfa_offset 16
+  37              		.cfi_offset 4, -16
+  38              		.cfi_offset 5, -12
+  39              		.cfi_offset 6, -8
+  40              		.cfi_offset 14, -4
+  41 0002 0546     		mov	r5, r0
+  42 0004 0E46     		mov	r6, r1
+  44:Expand/Src/ad7606.c ****     /* ---- 复位AD7606 (RST高电平脉冲) ---- */
+  45:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
+  43              		.loc 1 45 5 is_stmt 1 view .LVU2
+  44 0006 1C4C     		ldr	r4, .L3
+  45 0008 0022     		movs	r2, #0
+  46 000a 0121     		movs	r1, #1
+  47              	.LVL1:
+  48              		.loc 1 45 5 is_stmt 0 view .LVU3
+  49 000c 2046     		mov	r0, r4
+  50              	.LVL2:
+  51              		.loc 1 45 5 view .LVU4
+  52 000e FFF7FEFF 		bl	HAL_GPIO_WritePin
+  53              	.LVL3:
+  46:Expand/Src/ad7606.c ****     osDelay(2);                                  /* tRST低 > 50ns */
+  54              		.loc 1 46 5 is_stmt 1 view .LVU5
+  55 0012 0220     		movs	r0, #2
+  56 0014 FFF7FEFF 		bl	osDelay
+  57              	.LVL4:
+  47:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_SET);
+  58              		.loc 1 47 5 view .LVU6
+  59 0018 0122     		movs	r2, #1
+  60 001a 1146     		mov	r1, r2
+  61 001c 2046     		mov	r0, r4
+  62 001e FFF7FEFF 		bl	HAL_GPIO_WritePin
+  63              	.LVL5:
+  48:Expand/Src/ad7606.c ****     osDelay(2);                                  /* 等待复位完成 */
+  64              		.loc 1 48 5 view .LVU7
+  65 0022 0220     		movs	r0, #2
+  66 0024 FFF7FEFF 		bl	osDelay
+  67              	.LVL6:
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 3
+
+
+  49:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
+  68              		.loc 1 49 5 view .LVU8
+  69 0028 0022     		movs	r2, #0
+  70 002a 0121     		movs	r1, #1
+  71 002c 2046     		mov	r0, r4
+  72 002e FFF7FEFF 		bl	HAL_GPIO_WritePin
+  73              	.LVL7:
+  50:Expand/Src/ad7606.c ****     osDelay(10);                                 /* 稳定等待 */
+  74              		.loc 1 50 5 view .LVU9
+  75 0032 0A20     		movs	r0, #10
+  76 0034 FFF7FEFF 		bl	osDelay
+  77              	.LVL8:
+  51:Expand/Src/ad7606.c **** 
+  52:Expand/Src/ad7606.c ****     /* ---- 配置过采样 OS[2:0] ---- */
+  53:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_OS0_GPIO_Port, AD7606_OS0_Pin,
+  78              		.loc 1 53 5 view .LVU10
+  79 0038 05F00102 		and	r2, r5, #1
+  80 003c 0221     		movs	r1, #2
+  81 003e 2046     		mov	r0, r4
+  82 0040 FFF7FEFF 		bl	HAL_GPIO_WritePin
+  83              	.LVL9:
+  54:Expand/Src/ad7606.c ****         (os & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  55:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_OS1_GPIO_Port, AD7606_OS1_Pin,
+  84              		.loc 1 55 5 view .LVU11
+  85 0044 C5F34002 		ubfx	r2, r5, #1, #1
+  86 0048 0421     		movs	r1, #4
+  87 004a 2046     		mov	r0, r4
+  88 004c FFF7FEFF 		bl	HAL_GPIO_WritePin
+  89              	.LVL10:
+  56:Expand/Src/ad7606.c ****         (os & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  57:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_OS2_GPIO_Port, AD7606_OS2_Pin,
+  90              		.loc 1 57 5 view .LVU12
+  91 0050 C5F38002 		ubfx	r2, r5, #2, #1
+  92 0054 0821     		movs	r1, #8
+  93 0056 2046     		mov	r0, r4
+  94 0058 FFF7FEFF 		bl	HAL_GPIO_WritePin
+  95              	.LVL11:
+  58:Expand/Src/ad7606.c ****         (os & 0x04) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  59:Expand/Src/ad7606.c **** 
+  60:Expand/Src/ad7606.c ****     /* ---- 配置量程 RANGE: 0=±5V, 1=±10V ---- */
+  61:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_RANGE_GPIO_Port, AD7606_RANGE_Pin,
+  96              		.loc 1 61 5 view .LVU13
+  97 005c 012E     		cmp	r6, #1
+  98 005e 14BF     		ite	ne
+  99 0060 0022     		movne	r2, #0
+ 100 0062 0122     		moveq	r2, #1
+ 101 0064 1021     		movs	r1, #16
+ 102 0066 2046     		mov	r0, r4
+ 103 0068 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 104              	.LVL12:
+  62:Expand/Src/ad7606.c ****         (range == AD7606_RANGE_10V) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  63:Expand/Src/ad7606.c **** 
+  64:Expand/Src/ad7606.c ****     /* ---- 正常模式 FD=0 (非滤波/省电模式) ---- */
+  65:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_FD_GPIO_Port, AD7606_FD_Pin, GPIO_PIN_RESET);
+ 105              		.loc 1 65 5 view .LVU14
+ 106 006c 0022     		movs	r2, #0
+ 107 006e 2021     		movs	r1, #32
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 4
+
+
+ 108 0070 2046     		mov	r0, r4
+ 109 0072 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 110              	.LVL13:
+  66:Expand/Src/ad7606.c **** }
+ 111              		.loc 1 66 1 is_stmt 0 view .LVU15
+ 112 0076 70BD     		pop	{r4, r5, r6, pc}
+ 113              	.LVL14:
+ 114              	.L4:
+ 115              		.loc 1 66 1 view .LVU16
+ 116              		.align	2
+ 117              	.L3:
+ 118 0078 00080258 		.word	1476528128
+ 119              		.cfi_endproc
+ 120              	.LFE149:
+ 122              		.section	.text.AD7606_StartConversion,"ax",%progbits
+ 123              		.align	1
+ 124              		.global	AD7606_StartConversion
+ 125              		.syntax unified
+ 126              		.thumb
+ 127              		.thumb_func
+ 129              	AD7606_StartConversion:
+ 130              	.LFB150:
+  67:Expand/Src/ad7606.c **** 
+  68:Expand/Src/ad7606.c **** /* ======================== 启动转换 ======================== */
+  69:Expand/Src/ad7606.c **** 
+  70:Expand/Src/ad7606.c **** /**
+  71:Expand/Src/ad7606.c ****   * @brief  发送CONVST脉冲启动一次转换 (所有通道同时)
+  72:Expand/Src/ad7606.c ****   * @note   CONVST: 高→低→高, 低电平保持>25ns
+  73:Expand/Src/ad7606.c ****   * @retval None
+  74:Expand/Src/ad7606.c ****   */
+  75:Expand/Src/ad7606.c **** void AD7606_StartConversion(void)
+  76:Expand/Src/ad7606.c **** {
+ 131              		.loc 1 76 1 is_stmt 1 view -0
+ 132              		.cfi_startproc
+ 133              		@ args = 0, pretend = 0, frame = 0
+ 134              		@ frame_needed = 0, uses_anonymous_args = 0
+ 135 0000 10B5     		push	{r4, lr}
+ 136              	.LCFI1:
+ 137              		.cfi_def_cfa_offset 8
+ 138              		.cfi_offset 4, -8
+ 139              		.cfi_offset 14, -4
+  77:Expand/Src/ad7606.c ****     /* CONVST 从高拉低, 再拉高, 产生下降沿触发转换 */
+  78:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_SET);
+ 140              		.loc 1 78 5 view .LVU18
+ 141 0002 0D4C     		ldr	r4, .L7
+ 142 0004 0122     		movs	r2, #1
+ 143 0006 4FF48071 		mov	r1, #256
+ 144 000a 2046     		mov	r0, r4
+ 145 000c FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 146              	.LVL15:
+  79:Expand/Src/ad7606.c ****     __NOP(); __NOP(); __NOP();                  /* >25ns @480MHz */
+ 147              		.loc 1 79 5 view .LVU19
+ 148              		.syntax unified
+ 149              	@ 79 "Expand/Src/ad7606.c" 1
+ 150 0010 00BF     		nop
+ 151              	@ 0 "" 2
+ 152              		.loc 1 79 14 view .LVU20
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 5
+
+
+ 153              	@ 79 "Expand/Src/ad7606.c" 1
+ 154 0012 00BF     		nop
+ 155              	@ 0 "" 2
+ 156              		.loc 1 79 23 view .LVU21
+ 157              	@ 79 "Expand/Src/ad7606.c" 1
+ 158 0014 00BF     		nop
+ 159              	@ 0 "" 2
+  80:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_RESET);
+ 160              		.loc 1 80 5 view .LVU22
+ 161              		.thumb
+ 162              		.syntax unified
+ 163 0016 0022     		movs	r2, #0
+ 164 0018 4FF48071 		mov	r1, #256
+ 165 001c 2046     		mov	r0, r4
+ 166 001e FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 167              	.LVL16:
+  81:Expand/Src/ad7606.c ****     __NOP(); __NOP(); __NOP();                  /* 保持低电平 */
+ 168              		.loc 1 81 5 view .LVU23
+ 169              		.syntax unified
+ 170              	@ 81 "Expand/Src/ad7606.c" 1
+ 171 0022 00BF     		nop
+ 172              	@ 0 "" 2
+ 173              		.loc 1 81 14 view .LVU24
+ 174              	@ 81 "Expand/Src/ad7606.c" 1
+ 175 0024 00BF     		nop
+ 176              	@ 0 "" 2
+ 177              		.loc 1 81 23 view .LVU25
+ 178              	@ 81 "Expand/Src/ad7606.c" 1
+ 179 0026 00BF     		nop
+ 180              	@ 0 "" 2
+  82:Expand/Src/ad7606.c ****     HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_SET);
+ 181              		.loc 1 82 5 view .LVU26
+ 182              		.thumb
+ 183              		.syntax unified
+ 184 0028 0122     		movs	r2, #1
+ 185 002a 4FF48071 		mov	r1, #256
+ 186 002e 2046     		mov	r0, r4
+ 187 0030 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 188              	.LVL17:
+  83:Expand/Src/ad7606.c **** }
+ 189              		.loc 1 83 1 is_stmt 0 view .LVU27
+ 190 0034 10BD     		pop	{r4, pc}
+ 191              	.L8:
+ 192 0036 00BF     		.align	2
+ 193              	.L7:
+ 194 0038 00000258 		.word	1476526080
+ 195              		.cfi_endproc
+ 196              	.LFE150:
+ 198              		.section	.text.AD7606_ReadChannels,"ax",%progbits
+ 199              		.align	1
+ 200              		.global	AD7606_ReadChannels
+ 201              		.syntax unified
+ 202              		.thumb
+ 203              		.thumb_func
+ 205              	AD7606_ReadChannels:
+ 206              	.LVL18:
+ 207              	.LFB151:
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 6
+
+
+  84:Expand/Src/ad7606.c **** 
+  85:Expand/Src/ad7606.c **** /* ======================== 读取数据 ======================== */
+  86:Expand/Src/ad7606.c **** 
+  87:Expand/Src/ad7606.c **** /**
+  88:Expand/Src/ad7606.c ****   * @brief  通过FMC连续读取8个通道的数据
+  89:Expand/Src/ad7606.c ****   * @note   每个 AD7606_Read() 触发一次 FMC 读周期:
+  90:Expand/Src/ad7606.c ****   *         - NE1(CS) 自动拉低
+  91:Expand/Src/ad7606.c ****   *         - NOE(RD) 产生读脉冲
+  92:Expand/Src/ad7606.c ****   *         - 16位数据从 DB[15:0] 读取
+  93:Expand/Src/ad7606.c ****   *         AD7606自动按 V1→V2→...→V8 顺序输出
+  94:Expand/Src/ad7606.c ****   * @param  buf  输出缓冲区 (至少8个uint16_t)
+  95:Expand/Src/ad7606.c ****   * @retval None
+  96:Expand/Src/ad7606.c ****   */
+  97:Expand/Src/ad7606.c **** void AD7606_ReadChannels(uint16_t *buf)
+  98:Expand/Src/ad7606.c **** {
+ 208              		.loc 1 98 1 is_stmt 1 view -0
+ 209              		.cfi_startproc
+ 210              		@ args = 0, pretend = 0, frame = 0
+ 211              		@ frame_needed = 0, uses_anonymous_args = 0
+ 212              		@ link register save eliminated.
+  99:Expand/Src/ad7606.c ****     for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+ 213              		.loc 1 99 5 view .LVU29
+ 214              	.LBB2:
+ 215              		.loc 1 99 10 view .LVU30
+ 216              		.loc 1 99 14 is_stmt 0 view .LVU31
+ 217 0000 0023     		movs	r3, #0
+ 218              		.loc 1 99 5 view .LVU32
+ 219 0002 05E0     		b	.L10
+ 220              	.LVL19:
+ 221              	.L11:
+ 100:Expand/Src/ad7606.c ****     {
+ 101:Expand/Src/ad7606.c ****         buf[i] = AD7606_Read();
+ 222              		.loc 1 101 9 is_stmt 1 view .LVU33
+ 223              		.loc 1 101 18 is_stmt 0 view .LVU34
+ 224 0004 4FF0C042 		mov	r2, #1610612736
+ 225 0008 1288     		ldrh	r2, [r2]
+ 226              		.loc 1 101 16 view .LVU35
+ 227 000a 20F81320 		strh	r2, [r0, r3, lsl #1]	@ movhi
+  99:Expand/Src/ad7606.c ****     for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+ 228              		.loc 1 99 47 is_stmt 1 discriminator 3 view .LVU36
+ 229 000e 0133     		adds	r3, r3, #1
+ 230              	.LVL20:
+ 231              	.L10:
+  99:Expand/Src/ad7606.c ****     for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+ 232              		.loc 1 99 23 discriminator 1 view .LVU37
+ 233 0010 072B     		cmp	r3, #7
+ 234 0012 F7DD     		ble	.L11
+ 235              	.LBE2:
+ 102:Expand/Src/ad7606.c ****     }
+ 103:Expand/Src/ad7606.c **** }
+ 236              		.loc 1 103 1 is_stmt 0 view .LVU38
+ 237 0014 7047     		bx	lr
+ 238              		.cfi_endproc
+ 239              	.LFE151:
+ 241              		.section	.text.AD7606_ConvCompleteCallback,"ax",%progbits
+ 242              		.align	1
+ 243              		.global	AD7606_ConvCompleteCallback
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 7
+
+
+ 244              		.syntax unified
+ 245              		.thumb
+ 246              		.thumb_func
+ 248              	AD7606_ConvCompleteCallback:
+ 249              	.LFB152:
+ 104:Expand/Src/ad7606.c **** 
+ 105:Expand/Src/ad7606.c **** /* ======================== 中断回调 ======================== */
+ 106:Expand/Src/ad7606.c **** 
+ 107:Expand/Src/ad7606.c **** /**
+ 108:Expand/Src/ad7606.c ****   * @brief  BUSY下降沿中断回调
+ 109:Expand/Src/ad7606.c ****   * @note   在 stm32h7xx_it.c 的 EXTI0_IRQHandler 中调用
+ 110:Expand/Src/ad7606.c ****   *         释放信号量, 通知 StartTask_DataProcess 读取数据
+ 111:Expand/Src/ad7606.c ****   * @retval None
+ 112:Expand/Src/ad7606.c ****   */
+ 113:Expand/Src/ad7606.c **** void AD7606_ConvCompleteCallback(void)
+ 114:Expand/Src/ad7606.c **** {
+ 250              		.loc 1 114 1 is_stmt 1 view -0
+ 251              		.cfi_startproc
+ 252              		@ args = 0, pretend = 0, frame = 0
+ 253              		@ frame_needed = 0, uses_anonymous_args = 0
+ 254 0000 08B5     		push	{r3, lr}
+ 255              	.LCFI2:
+ 256              		.cfi_def_cfa_offset 8
+ 257              		.cfi_offset 3, -8
+ 258              		.cfi_offset 14, -4
+ 115:Expand/Src/ad7606.c ****     /* 释放二进制信号量 → 通知采集任务 */
+ 116:Expand/Src/ad7606.c ****     osSemaphoreRelease(AdcSemaphoreHandle);
+ 259              		.loc 1 116 5 view .LVU40
+ 260 0002 024B     		ldr	r3, .L14
+ 261 0004 1868     		ldr	r0, [r3]
+ 262 0006 FFF7FEFF 		bl	osSemaphoreRelease
+ 263              	.LVL21:
+ 117:Expand/Src/ad7606.c **** }
+ 264              		.loc 1 117 1 is_stmt 0 view .LVU41
+ 265 000a 08BD     		pop	{r3, pc}
+ 266              	.L15:
+ 267              		.align	2
+ 268              	.L14:
+ 269 000c 00000000 		.word	AdcSemaphoreHandle
+ 270              		.cfi_endproc
+ 271              	.LFE152:
+ 273              		.section	.text.HAL_GPIO_EXTI_Callback,"ax",%progbits
+ 274              		.align	1
+ 275              		.global	HAL_GPIO_EXTI_Callback
+ 276              		.syntax unified
+ 277              		.thumb
+ 278              		.thumb_func
+ 280              	HAL_GPIO_EXTI_Callback:
+ 281              	.LVL22:
+ 282              	.LFB148:
+  26:Expand/Src/ad7606.c ****     if (GPIO_Pin == AD7606_BUSY_Pin)
+ 283              		.loc 1 26 1 is_stmt 1 view -0
+ 284              		.cfi_startproc
+ 285              		@ args = 0, pretend = 0, frame = 0
+ 286              		@ frame_needed = 0, uses_anonymous_args = 0
+  27:Expand/Src/ad7606.c ****     {
+ 287              		.loc 1 27 5 view .LVU43
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 8
+
+
+  27:Expand/Src/ad7606.c ****     {
+ 288              		.loc 1 27 8 is_stmt 0 view .LVU44
+ 289 0000 0128     		cmp	r0, #1
+ 290 0002 00D0     		beq	.L22
+ 291 0004 7047     		bx	lr
+ 292              	.L22:
+  26:Expand/Src/ad7606.c ****     if (GPIO_Pin == AD7606_BUSY_Pin)
+ 293              		.loc 1 26 1 view .LVU45
+ 294 0006 08B5     		push	{r3, lr}
+ 295              	.LCFI3:
+ 296              		.cfi_def_cfa_offset 8
+ 297              		.cfi_offset 3, -8
+ 298              		.cfi_offset 14, -4
+  30:Expand/Src/ad7606.c ****     }
+ 299              		.loc 1 30 9 is_stmt 1 view .LVU46
+ 300 0008 FFF7FEFF 		bl	AD7606_ConvCompleteCallback
+ 301              	.LVL23:
+  32:Expand/Src/ad7606.c **** 
+ 302              		.loc 1 32 1 is_stmt 0 view .LVU47
+ 303 000c 08BD     		pop	{r3, pc}
+ 304              		.cfi_endproc
+ 305              	.LFE148:
+ 307              		.text
+ 308              	.Letext0:
+ 309              		.file 2 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 310              		.file 3 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 311              		.file 4 "Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h743xx.h"
+ 312              		.file 5 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio.h"
+ 313              		.file 6 "Expand/Inc/ad7606.h"
+ 314              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h"
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s 			page 9
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ad7606.c
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:20     .text.AD7606_Init:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:26     .text.AD7606_Init:00000000 AD7606_Init
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:118    .text.AD7606_Init:00000078 $d
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:123    .text.AD7606_StartConversion:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:129    .text.AD7606_StartConversion:00000000 AD7606_StartConversion
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:194    .text.AD7606_StartConversion:00000038 $d
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:199    .text.AD7606_ReadChannels:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:205    .text.AD7606_ReadChannels:00000000 AD7606_ReadChannels
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:242    .text.AD7606_ConvCompleteCallback:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:248    .text.AD7606_ConvCompleteCallback:00000000 AD7606_ConvCompleteCallback
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:269    .text.AD7606_ConvCompleteCallback:0000000c $d
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:274    .text.HAL_GPIO_EXTI_Callback:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccrP2AfU.s:280    .text.HAL_GPIO_EXTI_Callback:00000000 HAL_GPIO_EXTI_Callback
+
+UNDEFINED SYMBOLS
+HAL_GPIO_WritePin
+osDelay
+osSemaphoreRelease
+AdcSemaphoreHandle

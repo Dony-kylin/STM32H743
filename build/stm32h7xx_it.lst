@@ -1,4 +1,4 @@
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 1
 
 
    1              		.cpu cortex-m7
@@ -58,7 +58,7 @@ ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
   29:Core/Src/stm32h7xx_it.c **** 
   30:Core/Src/stm32h7xx_it.c **** /* USER CODE END TD */
   31:Core/Src/stm32h7xx_it.c **** 
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 2
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 2
 
 
   32:Core/Src/stm32h7xx_it.c **** /* Private define ------------------------------------------------------------*/
@@ -87,40 +87,48 @@ ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
   55:Core/Src/stm32h7xx_it.c **** /* USER CODE END 0 */
   56:Core/Src/stm32h7xx_it.c **** 
   57:Core/Src/stm32h7xx_it.c **** /* External variables --------------------------------------------------------*/
-  58:Core/Src/stm32h7xx_it.c **** 
-  59:Core/Src/stm32h7xx_it.c **** /* USER CODE BEGIN EV */
-  60:Core/Src/stm32h7xx_it.c **** 
-  61:Core/Src/stm32h7xx_it.c **** /* USER CODE END EV */
-  62:Core/Src/stm32h7xx_it.c **** 
-  63:Core/Src/stm32h7xx_it.c **** /******************************************************************************/
-  64:Core/Src/stm32h7xx_it.c **** /*           Cortex Processor Interruption and Exception Handlers          */
-  65:Core/Src/stm32h7xx_it.c **** /******************************************************************************/
-  66:Core/Src/stm32h7xx_it.c **** /**
-  67:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Non maskable interrupt.
-  68:Core/Src/stm32h7xx_it.c ****   */
-  69:Core/Src/stm32h7xx_it.c **** void NMI_Handler(void)
-  70:Core/Src/stm32h7xx_it.c **** {
-  28              		.loc 1 70 1 view -0
+  58:Core/Src/stm32h7xx_it.c **** extern TIM_HandleTypeDef htim6;
+  59:Core/Src/stm32h7xx_it.c **** 
+  60:Core/Src/stm32h7xx_it.c **** /* USER CODE BEGIN EV */
+  61:Core/Src/stm32h7xx_it.c **** 
+  62:Core/Src/stm32h7xx_it.c **** /* USER CODE END EV */
+  63:Core/Src/stm32h7xx_it.c **** 
+  64:Core/Src/stm32h7xx_it.c **** /* Private function prototypes -----------------------------------------------*/
+  65:Core/Src/stm32h7xx_it.c **** /* USER CODE BEGIN PFP */
+  66:Core/Src/stm32h7xx_it.c **** 
+  67:Core/Src/stm32h7xx_it.c **** /* USER CODE END PFP */
+  68:Core/Src/stm32h7xx_it.c **** 
+  69:Core/Src/stm32h7xx_it.c **** /* USER CODE END EV */
+  70:Core/Src/stm32h7xx_it.c **** 
+  71:Core/Src/stm32h7xx_it.c **** /******************************************************************************/
+  72:Core/Src/stm32h7xx_it.c **** /*           Cortex Processor Interruption and Exception Handlers          */
+  73:Core/Src/stm32h7xx_it.c **** /******************************************************************************/
+  74:Core/Src/stm32h7xx_it.c **** /**
+  75:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Non maskable interrupt.
+  76:Core/Src/stm32h7xx_it.c ****   */
+  77:Core/Src/stm32h7xx_it.c **** void NMI_Handler(void)
+  78:Core/Src/stm32h7xx_it.c **** {
+  28              		.loc 1 78 1 view -0
   29              		.cfi_startproc
   30              		@ Volatile: function does not return.
   31              		@ args = 0, pretend = 0, frame = 0
   32              		@ frame_needed = 0, uses_anonymous_args = 0
   33              		@ link register save eliminated.
   34              	.L2:
-  71:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
-  72:Core/Src/stm32h7xx_it.c **** 
-  73:Core/Src/stm32h7xx_it.c ****   /* USER CODE END NonMaskableInt_IRQn 0 */
-  74:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-  75:Core/Src/stm32h7xx_it.c ****    while (1)
-  35              		.loc 1 75 4 view .LVU1
-  76:Core/Src/stm32h7xx_it.c ****   {
-  77:Core/Src/stm32h7xx_it.c ****   }
-  36              		.loc 1 77 3 view .LVU2
-  75:Core/Src/stm32h7xx_it.c ****   {
-  37              		.loc 1 75 10 view .LVU3
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 3
+  79:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
+  80:Core/Src/stm32h7xx_it.c **** 
+  81:Core/Src/stm32h7xx_it.c ****   /* USER CODE END NonMaskableInt_IRQn 0 */
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 3
 
 
+  82:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
+  83:Core/Src/stm32h7xx_it.c ****    while (1)
+  35              		.loc 1 83 4 view .LVU1
+  84:Core/Src/stm32h7xx_it.c ****   {
+  85:Core/Src/stm32h7xx_it.c ****   }
+  36              		.loc 1 85 3 view .LVU2
+  83:Core/Src/stm32h7xx_it.c ****   {
+  37              		.loc 1 83 10 view .LVU3
   38 0000 FEE7     		b	.L2
   39              		.cfi_endproc
   40              	.LFE144:
@@ -132,33 +140,33 @@ ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
   47              		.thumb_func
   49              	HardFault_Handler:
   50              	.LFB145:
-  78:Core/Src/stm32h7xx_it.c ****   /* USER CODE END NonMaskableInt_IRQn 1 */
-  79:Core/Src/stm32h7xx_it.c **** }
-  80:Core/Src/stm32h7xx_it.c **** 
-  81:Core/Src/stm32h7xx_it.c **** /**
-  82:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Hard fault interrupt.
-  83:Core/Src/stm32h7xx_it.c ****   */
-  84:Core/Src/stm32h7xx_it.c **** void HardFault_Handler(void)
-  85:Core/Src/stm32h7xx_it.c **** {
-  51              		.loc 1 85 1 view -0
+  86:Core/Src/stm32h7xx_it.c ****   /* USER CODE END NonMaskableInt_IRQn 1 */
+  87:Core/Src/stm32h7xx_it.c **** }
+  88:Core/Src/stm32h7xx_it.c **** 
+  89:Core/Src/stm32h7xx_it.c **** /**
+  90:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Hard fault interrupt.
+  91:Core/Src/stm32h7xx_it.c ****   */
+  92:Core/Src/stm32h7xx_it.c **** void HardFault_Handler(void)
+  93:Core/Src/stm32h7xx_it.c **** {
+  51              		.loc 1 93 1 view -0
   52              		.cfi_startproc
   53              		@ Volatile: function does not return.
   54              		@ args = 0, pretend = 0, frame = 0
   55              		@ frame_needed = 0, uses_anonymous_args = 0
   56              		@ link register save eliminated.
   57              	.L4:
-  86:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN HardFault_IRQn 0 */
-  87:Core/Src/stm32h7xx_it.c **** 
-  88:Core/Src/stm32h7xx_it.c ****   /* USER CODE END HardFault_IRQn 0 */
-  89:Core/Src/stm32h7xx_it.c ****   while (1)
-  58              		.loc 1 89 3 view .LVU5
-  90:Core/Src/stm32h7xx_it.c ****   {
-  91:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-  92:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_HardFault_IRQn 0 */
-  93:Core/Src/stm32h7xx_it.c ****   }
-  59              		.loc 1 93 3 view .LVU6
-  89:Core/Src/stm32h7xx_it.c ****   {
-  60              		.loc 1 89 9 view .LVU7
+  94:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN HardFault_IRQn 0 */
+  95:Core/Src/stm32h7xx_it.c **** 
+  96:Core/Src/stm32h7xx_it.c ****   /* USER CODE END HardFault_IRQn 0 */
+  97:Core/Src/stm32h7xx_it.c ****   while (1)
+  58              		.loc 1 97 3 view .LVU5
+  98:Core/Src/stm32h7xx_it.c ****   {
+  99:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+ 100:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_HardFault_IRQn 0 */
+ 101:Core/Src/stm32h7xx_it.c ****   }
+  59              		.loc 1 101 3 view .LVU6
+  97:Core/Src/stm32h7xx_it.c ****   {
+  60              		.loc 1 97 9 view .LVU7
   61 0000 FEE7     		b	.L4
   62              		.cfi_endproc
   63              	.LFE145:
@@ -170,35 +178,35 @@ ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
   70              		.thumb_func
   72              	MemManage_Handler:
   73              	.LFB146:
-  94:Core/Src/stm32h7xx_it.c **** }
-  95:Core/Src/stm32h7xx_it.c **** 
-  96:Core/Src/stm32h7xx_it.c **** /**
-  97:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Memory management fault.
-  98:Core/Src/stm32h7xx_it.c ****   */
-  99:Core/Src/stm32h7xx_it.c **** void MemManage_Handler(void)
- 100:Core/Src/stm32h7xx_it.c **** {
-  74              		.loc 1 100 1 view -0
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 4
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 4
 
 
+ 102:Core/Src/stm32h7xx_it.c **** }
+ 103:Core/Src/stm32h7xx_it.c **** 
+ 104:Core/Src/stm32h7xx_it.c **** /**
+ 105:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Memory management fault.
+ 106:Core/Src/stm32h7xx_it.c ****   */
+ 107:Core/Src/stm32h7xx_it.c **** void MemManage_Handler(void)
+ 108:Core/Src/stm32h7xx_it.c **** {
+  74              		.loc 1 108 1 view -0
   75              		.cfi_startproc
   76              		@ Volatile: function does not return.
   77              		@ args = 0, pretend = 0, frame = 0
   78              		@ frame_needed = 0, uses_anonymous_args = 0
   79              		@ link register save eliminated.
   80              	.L6:
- 101:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
- 102:Core/Src/stm32h7xx_it.c **** 
- 103:Core/Src/stm32h7xx_it.c ****   /* USER CODE END MemoryManagement_IRQn 0 */
- 104:Core/Src/stm32h7xx_it.c ****   while (1)
-  81              		.loc 1 104 3 view .LVU9
- 105:Core/Src/stm32h7xx_it.c ****   {
- 106:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
- 107:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_MemoryManagement_IRQn 0 */
- 108:Core/Src/stm32h7xx_it.c ****   }
-  82              		.loc 1 108 3 view .LVU10
- 104:Core/Src/stm32h7xx_it.c ****   {
-  83              		.loc 1 104 9 view .LVU11
+ 109:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
+ 110:Core/Src/stm32h7xx_it.c **** 
+ 111:Core/Src/stm32h7xx_it.c ****   /* USER CODE END MemoryManagement_IRQn 0 */
+ 112:Core/Src/stm32h7xx_it.c ****   while (1)
+  81              		.loc 1 112 3 view .LVU9
+ 113:Core/Src/stm32h7xx_it.c ****   {
+ 114:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
+ 115:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_MemoryManagement_IRQn 0 */
+ 116:Core/Src/stm32h7xx_it.c ****   }
+  82              		.loc 1 116 3 view .LVU10
+ 112:Core/Src/stm32h7xx_it.c ****   {
+  83              		.loc 1 112 9 view .LVU11
   84 0000 FEE7     		b	.L6
   85              		.cfi_endproc
   86              	.LFE146:
@@ -210,37 +218,37 @@ ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
   93              		.thumb_func
   95              	BusFault_Handler:
   96              	.LFB147:
- 109:Core/Src/stm32h7xx_it.c **** }
- 110:Core/Src/stm32h7xx_it.c **** 
- 111:Core/Src/stm32h7xx_it.c **** /**
- 112:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Pre-fetch fault, memory access fault.
- 113:Core/Src/stm32h7xx_it.c ****   */
- 114:Core/Src/stm32h7xx_it.c **** void BusFault_Handler(void)
- 115:Core/Src/stm32h7xx_it.c **** {
-  97              		.loc 1 115 1 view -0
+ 117:Core/Src/stm32h7xx_it.c **** }
+ 118:Core/Src/stm32h7xx_it.c **** 
+ 119:Core/Src/stm32h7xx_it.c **** /**
+ 120:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Pre-fetch fault, memory access fault.
+ 121:Core/Src/stm32h7xx_it.c ****   */
+ 122:Core/Src/stm32h7xx_it.c **** void BusFault_Handler(void)
+ 123:Core/Src/stm32h7xx_it.c **** {
+  97              		.loc 1 123 1 view -0
   98              		.cfi_startproc
   99              		@ Volatile: function does not return.
  100              		@ args = 0, pretend = 0, frame = 0
  101              		@ frame_needed = 0, uses_anonymous_args = 0
  102              		@ link register save eliminated.
  103              	.L8:
- 116:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN BusFault_IRQn 0 */
- 117:Core/Src/stm32h7xx_it.c **** 
- 118:Core/Src/stm32h7xx_it.c ****   /* USER CODE END BusFault_IRQn 0 */
- 119:Core/Src/stm32h7xx_it.c ****   while (1)
- 104              		.loc 1 119 3 view .LVU13
- 120:Core/Src/stm32h7xx_it.c ****   {
- 121:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_BusFault_IRQn 0 */
- 122:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_BusFault_IRQn 0 */
- 123:Core/Src/stm32h7xx_it.c ****   }
- 105              		.loc 1 123 3 view .LVU14
- 119:Core/Src/stm32h7xx_it.c ****   {
- 106              		.loc 1 119 9 view .LVU15
+ 124:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN BusFault_IRQn 0 */
+ 125:Core/Src/stm32h7xx_it.c **** 
+ 126:Core/Src/stm32h7xx_it.c ****   /* USER CODE END BusFault_IRQn 0 */
+ 127:Core/Src/stm32h7xx_it.c ****   while (1)
+ 104              		.loc 1 127 3 view .LVU13
+ 128:Core/Src/stm32h7xx_it.c ****   {
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 5
+
+
+ 129:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_BusFault_IRQn 0 */
+ 130:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_BusFault_IRQn 0 */
+ 131:Core/Src/stm32h7xx_it.c ****   }
+ 105              		.loc 1 131 3 view .LVU14
+ 127:Core/Src/stm32h7xx_it.c ****   {
+ 106              		.loc 1 127 9 view .LVU15
  107 0000 FEE7     		b	.L8
  108              		.cfi_endproc
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 5
-
-
  109              	.LFE147:
  111              		.section	.text.UsageFault_Handler,"ax",%progbits
  112              		.align	1
@@ -250,196 +258,197 @@ ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 1
  116              		.thumb_func
  118              	UsageFault_Handler:
  119              	.LFB148:
- 124:Core/Src/stm32h7xx_it.c **** }
- 125:Core/Src/stm32h7xx_it.c **** 
- 126:Core/Src/stm32h7xx_it.c **** /**
- 127:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Undefined instruction or illegal state.
- 128:Core/Src/stm32h7xx_it.c ****   */
- 129:Core/Src/stm32h7xx_it.c **** void UsageFault_Handler(void)
- 130:Core/Src/stm32h7xx_it.c **** {
- 120              		.loc 1 130 1 view -0
+ 132:Core/Src/stm32h7xx_it.c **** }
+ 133:Core/Src/stm32h7xx_it.c **** 
+ 134:Core/Src/stm32h7xx_it.c **** /**
+ 135:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Undefined instruction or illegal state.
+ 136:Core/Src/stm32h7xx_it.c ****   */
+ 137:Core/Src/stm32h7xx_it.c **** void UsageFault_Handler(void)
+ 138:Core/Src/stm32h7xx_it.c **** {
+ 120              		.loc 1 138 1 view -0
  121              		.cfi_startproc
  122              		@ Volatile: function does not return.
  123              		@ args = 0, pretend = 0, frame = 0
  124              		@ frame_needed = 0, uses_anonymous_args = 0
  125              		@ link register save eliminated.
  126              	.L10:
- 131:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN UsageFault_IRQn 0 */
- 132:Core/Src/stm32h7xx_it.c **** 
- 133:Core/Src/stm32h7xx_it.c ****   /* USER CODE END UsageFault_IRQn 0 */
- 134:Core/Src/stm32h7xx_it.c ****   while (1)
- 127              		.loc 1 134 3 view .LVU17
- 135:Core/Src/stm32h7xx_it.c ****   {
- 136:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_UsageFault_IRQn 0 */
- 137:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_UsageFault_IRQn 0 */
- 138:Core/Src/stm32h7xx_it.c ****   }
- 128              		.loc 1 138 3 view .LVU18
- 134:Core/Src/stm32h7xx_it.c ****   {
- 129              		.loc 1 134 9 view .LVU19
+ 139:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN UsageFault_IRQn 0 */
+ 140:Core/Src/stm32h7xx_it.c **** 
+ 141:Core/Src/stm32h7xx_it.c ****   /* USER CODE END UsageFault_IRQn 0 */
+ 142:Core/Src/stm32h7xx_it.c ****   while (1)
+ 127              		.loc 1 142 3 view .LVU17
+ 143:Core/Src/stm32h7xx_it.c ****   {
+ 144:Core/Src/stm32h7xx_it.c ****     /* USER CODE BEGIN W1_UsageFault_IRQn 0 */
+ 145:Core/Src/stm32h7xx_it.c ****     /* USER CODE END W1_UsageFault_IRQn 0 */
+ 146:Core/Src/stm32h7xx_it.c ****   }
+ 128              		.loc 1 146 3 view .LVU18
+ 142:Core/Src/stm32h7xx_it.c ****   {
+ 129              		.loc 1 142 9 view .LVU19
  130 0000 FEE7     		b	.L10
  131              		.cfi_endproc
  132              	.LFE148:
- 134              		.section	.text.SVC_Handler,"ax",%progbits
+ 134              		.section	.text.DebugMon_Handler,"ax",%progbits
  135              		.align	1
- 136              		.global	SVC_Handler
+ 136              		.global	DebugMon_Handler
  137              		.syntax unified
  138              		.thumb
  139              		.thumb_func
- 141              	SVC_Handler:
+ 141              	DebugMon_Handler:
  142              	.LFB149:
- 139:Core/Src/stm32h7xx_it.c **** }
- 140:Core/Src/stm32h7xx_it.c **** 
- 141:Core/Src/stm32h7xx_it.c **** /**
- 142:Core/Src/stm32h7xx_it.c ****   * @brief This function handles System service call via SWI instruction.
- 143:Core/Src/stm32h7xx_it.c ****   */
- 144:Core/Src/stm32h7xx_it.c **** void SVC_Handler(void)
- 145:Core/Src/stm32h7xx_it.c **** {
- 143              		.loc 1 145 1 view -0
+ 147:Core/Src/stm32h7xx_it.c **** }
+ 148:Core/Src/stm32h7xx_it.c **** 
+ 149:Core/Src/stm32h7xx_it.c **** /**
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 6
+
+
+ 150:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Debug monitor.
+ 151:Core/Src/stm32h7xx_it.c ****   */
+ 152:Core/Src/stm32h7xx_it.c **** void DebugMon_Handler(void)
+ 153:Core/Src/stm32h7xx_it.c **** {
+ 143              		.loc 1 153 1 view -0
  144              		.cfi_startproc
  145              		@ args = 0, pretend = 0, frame = 0
  146              		@ frame_needed = 0, uses_anonymous_args = 0
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 6
-
-
  147              		@ link register save eliminated.
- 146:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN SVCall_IRQn 0 */
- 147:Core/Src/stm32h7xx_it.c **** 
- 148:Core/Src/stm32h7xx_it.c ****   /* USER CODE END SVCall_IRQn 0 */
- 149:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN SVCall_IRQn 1 */
- 150:Core/Src/stm32h7xx_it.c **** 
- 151:Core/Src/stm32h7xx_it.c ****   /* USER CODE END SVCall_IRQn 1 */
- 152:Core/Src/stm32h7xx_it.c **** }
- 148              		.loc 1 152 1 view .LVU21
+ 154:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN DebugMonitor_IRQn 0 */
+ 155:Core/Src/stm32h7xx_it.c **** 
+ 156:Core/Src/stm32h7xx_it.c ****   /* USER CODE END DebugMonitor_IRQn 0 */
+ 157:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN DebugMonitor_IRQn 1 */
+ 158:Core/Src/stm32h7xx_it.c **** 
+ 159:Core/Src/stm32h7xx_it.c ****   /* USER CODE END DebugMonitor_IRQn 1 */
+ 160:Core/Src/stm32h7xx_it.c **** }
+ 148              		.loc 1 160 1 view .LVU21
  149 0000 7047     		bx	lr
  150              		.cfi_endproc
  151              	.LFE149:
- 153              		.section	.text.DebugMon_Handler,"ax",%progbits
+ 153              		.section	.text.EXTI0_IRQHandler,"ax",%progbits
  154              		.align	1
- 155              		.global	DebugMon_Handler
+ 155              		.global	EXTI0_IRQHandler
  156              		.syntax unified
  157              		.thumb
  158              		.thumb_func
- 160              	DebugMon_Handler:
+ 160              	EXTI0_IRQHandler:
  161              	.LFB150:
- 153:Core/Src/stm32h7xx_it.c **** 
- 154:Core/Src/stm32h7xx_it.c **** /**
- 155:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Debug monitor.
- 156:Core/Src/stm32h7xx_it.c ****   */
- 157:Core/Src/stm32h7xx_it.c **** void DebugMon_Handler(void)
- 158:Core/Src/stm32h7xx_it.c **** {
- 162              		.loc 1 158 1 view -0
+ 161:Core/Src/stm32h7xx_it.c **** 
+ 162:Core/Src/stm32h7xx_it.c **** /******************************************************************************/
+ 163:Core/Src/stm32h7xx_it.c **** /* STM32H7xx Peripheral Interrupt Handlers                                    */
+ 164:Core/Src/stm32h7xx_it.c **** /* Add here the Interrupt Handlers for the used peripherals.                  */
+ 165:Core/Src/stm32h7xx_it.c **** /* For the available peripheral interrupt handler names,                      */
+ 166:Core/Src/stm32h7xx_it.c **** /* please refer to the startup file (startup_stm32h7xx.s).                    */
+ 167:Core/Src/stm32h7xx_it.c **** /******************************************************************************/
+ 168:Core/Src/stm32h7xx_it.c **** 
+ 169:Core/Src/stm32h7xx_it.c **** /**
+ 170:Core/Src/stm32h7xx_it.c ****   * @brief This function handles EXTI line0 interrupt.
+ 171:Core/Src/stm32h7xx_it.c ****   */
+ 172:Core/Src/stm32h7xx_it.c **** void EXTI0_IRQHandler(void)
+ 173:Core/Src/stm32h7xx_it.c **** {
+ 162              		.loc 1 173 1 view -0
  163              		.cfi_startproc
  164              		@ args = 0, pretend = 0, frame = 0
  165              		@ frame_needed = 0, uses_anonymous_args = 0
- 166              		@ link register save eliminated.
- 159:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN DebugMonitor_IRQn 0 */
- 160:Core/Src/stm32h7xx_it.c **** 
- 161:Core/Src/stm32h7xx_it.c ****   /* USER CODE END DebugMonitor_IRQn 0 */
- 162:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN DebugMonitor_IRQn 1 */
- 163:Core/Src/stm32h7xx_it.c **** 
- 164:Core/Src/stm32h7xx_it.c ****   /* USER CODE END DebugMonitor_IRQn 1 */
- 165:Core/Src/stm32h7xx_it.c **** }
- 167              		.loc 1 165 1 view .LVU23
- 168 0000 7047     		bx	lr
- 169              		.cfi_endproc
- 170              	.LFE150:
- 172              		.section	.text.PendSV_Handler,"ax",%progbits
- 173              		.align	1
- 174              		.global	PendSV_Handler
- 175              		.syntax unified
- 176              		.thumb
- 177              		.thumb_func
- 179              	PendSV_Handler:
- 180              	.LFB151:
- 166:Core/Src/stm32h7xx_it.c **** 
- 167:Core/Src/stm32h7xx_it.c **** /**
- 168:Core/Src/stm32h7xx_it.c ****   * @brief This function handles Pendable request for system service.
- 169:Core/Src/stm32h7xx_it.c ****   */
- 170:Core/Src/stm32h7xx_it.c **** void PendSV_Handler(void)
- 171:Core/Src/stm32h7xx_it.c **** {
- 181              		.loc 1 171 1 view -0
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 7
+ 166 0000 08B5     		push	{r3, lr}
+ 167              	.LCFI0:
+ 168              		.cfi_def_cfa_offset 8
+ 169              		.cfi_offset 3, -8
+ 170              		.cfi_offset 14, -4
+ 174:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN EXTI0_IRQn 0 */
+ 175:Core/Src/stm32h7xx_it.c **** 
+ 176:Core/Src/stm32h7xx_it.c ****   /* USER CODE END EXTI0_IRQn 0 */
+ 177:Core/Src/stm32h7xx_it.c ****   HAL_GPIO_EXTI_IRQHandler(AD7606_BUSY_Pin);
+ 171              		.loc 1 177 3 view .LVU23
+ 172 0002 0120     		movs	r0, #1
+ 173 0004 FFF7FEFF 		bl	HAL_GPIO_EXTI_IRQHandler
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 7
 
 
- 182              		.cfi_startproc
- 183              		@ args = 0, pretend = 0, frame = 0
- 184              		@ frame_needed = 0, uses_anonymous_args = 0
- 185              		@ link register save eliminated.
- 172:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN PendSV_IRQn 0 */
- 173:Core/Src/stm32h7xx_it.c **** 
- 174:Core/Src/stm32h7xx_it.c ****   /* USER CODE END PendSV_IRQn 0 */
- 175:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN PendSV_IRQn 1 */
- 176:Core/Src/stm32h7xx_it.c **** 
- 177:Core/Src/stm32h7xx_it.c ****   /* USER CODE END PendSV_IRQn 1 */
- 178:Core/Src/stm32h7xx_it.c **** }
- 186              		.loc 1 178 1 view .LVU25
- 187 0000 7047     		bx	lr
- 188              		.cfi_endproc
- 189              	.LFE151:
- 191              		.section	.text.SysTick_Handler,"ax",%progbits
- 192              		.align	1
- 193              		.global	SysTick_Handler
- 194              		.syntax unified
- 195              		.thumb
- 196              		.thumb_func
- 198              	SysTick_Handler:
- 199              	.LFB152:
+ 174              	.LVL0:
+ 178:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN EXTI0_IRQn 1 */
  179:Core/Src/stm32h7xx_it.c **** 
- 180:Core/Src/stm32h7xx_it.c **** /**
- 181:Core/Src/stm32h7xx_it.c ****   * @brief This function handles System tick timer.
- 182:Core/Src/stm32h7xx_it.c ****   */
- 183:Core/Src/stm32h7xx_it.c **** void SysTick_Handler(void)
- 184:Core/Src/stm32h7xx_it.c **** {
- 200              		.loc 1 184 1 view -0
- 201              		.cfi_startproc
- 202              		@ args = 0, pretend = 0, frame = 0
- 203              		@ frame_needed = 0, uses_anonymous_args = 0
- 204 0000 08B5     		push	{r3, lr}
- 205              	.LCFI0:
- 206              		.cfi_def_cfa_offset 8
- 207              		.cfi_offset 3, -8
- 208              		.cfi_offset 14, -4
- 185:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN SysTick_IRQn 0 */
- 186:Core/Src/stm32h7xx_it.c **** 
- 187:Core/Src/stm32h7xx_it.c ****   /* USER CODE END SysTick_IRQn 0 */
- 188:Core/Src/stm32h7xx_it.c ****   HAL_IncTick();
- 209              		.loc 1 188 3 view .LVU27
- 210 0002 FFF7FEFF 		bl	HAL_IncTick
- 211              	.LVL0:
- 189:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN SysTick_IRQn 1 */
- 190:Core/Src/stm32h7xx_it.c **** 
- 191:Core/Src/stm32h7xx_it.c ****   /* USER CODE END SysTick_IRQn 1 */
- 192:Core/Src/stm32h7xx_it.c **** }
- 212              		.loc 1 192 1 is_stmt 0 view .LVU28
- 213 0006 08BD     		pop	{r3, pc}
- 214              		.cfi_endproc
- 215              	.LFE152:
- 217              		.text
- 218              	.Letext0:
- 219              		.file 2 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h"
-ARM GAS  C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s 			page 8
+ 180:Core/Src/stm32h7xx_it.c ****   /* USER CODE END EXTI0_IRQn 1 */
+ 181:Core/Src/stm32h7xx_it.c **** }
+ 175              		.loc 1 181 1 is_stmt 0 view .LVU24
+ 176 0008 08BD     		pop	{r3, pc}
+ 177              		.cfi_endproc
+ 178              	.LFE150:
+ 180              		.section	.text.TIM6_DAC_IRQHandler,"ax",%progbits
+ 181              		.align	1
+ 182              		.global	TIM6_DAC_IRQHandler
+ 183              		.syntax unified
+ 184              		.thumb
+ 185              		.thumb_func
+ 187              	TIM6_DAC_IRQHandler:
+ 188              	.LFB151:
+ 182:Core/Src/stm32h7xx_it.c **** 
+ 183:Core/Src/stm32h7xx_it.c **** /**
+ 184:Core/Src/stm32h7xx_it.c ****   * @brief This function handles TIM6 global interrupt, DAC1_CH1 and DAC1_CH2 underrun error interr
+ 185:Core/Src/stm32h7xx_it.c ****   */
+ 186:Core/Src/stm32h7xx_it.c **** void TIM6_DAC_IRQHandler(void)
+ 187:Core/Src/stm32h7xx_it.c **** {
+ 189              		.loc 1 187 1 is_stmt 1 view -0
+ 190              		.cfi_startproc
+ 191              		@ args = 0, pretend = 0, frame = 0
+ 192              		@ frame_needed = 0, uses_anonymous_args = 0
+ 193 0000 08B5     		push	{r3, lr}
+ 194              	.LCFI1:
+ 195              		.cfi_def_cfa_offset 8
+ 196              		.cfi_offset 3, -8
+ 197              		.cfi_offset 14, -4
+ 188:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
+ 189:Core/Src/stm32h7xx_it.c **** 
+ 190:Core/Src/stm32h7xx_it.c ****   /* USER CODE END TIM6_DAC_IRQn 0 */
+ 191:Core/Src/stm32h7xx_it.c ****   HAL_TIM_IRQHandler(&htim6);
+ 198              		.loc 1 191 3 view .LVU26
+ 199 0002 0248     		ldr	r0, .L16
+ 200 0004 FFF7FEFF 		bl	HAL_TIM_IRQHandler
+ 201              	.LVL1:
+ 192:Core/Src/stm32h7xx_it.c ****   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
+ 193:Core/Src/stm32h7xx_it.c **** 
+ 194:Core/Src/stm32h7xx_it.c ****   /* USER CODE END TIM6_DAC_IRQn 1 */
+ 195:Core/Src/stm32h7xx_it.c **** }
+ 202              		.loc 1 195 1 is_stmt 0 view .LVU27
+ 203 0008 08BD     		pop	{r3, pc}
+ 204              	.L17:
+ 205 000a 00BF     		.align	2
+ 206              	.L16:
+ 207 000c 00000000 		.word	htim6
+ 208              		.cfi_endproc
+ 209              	.LFE151:
+ 211              		.text
+ 212              	.Letext0:
+ 213              		.file 2 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 214              		.file 3 "C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeCLT_1.20.0\\GNU-tools-for-STM3
+ 215              		.file 4 "Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h743xx.h"
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 8
+
+
+ 216              		.file 5 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_def.h"
+ 217              		.file 6 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_dma.h"
+ 218              		.file 7 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim.h"
+ 219              		.file 8 "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio.h"
+ARM GAS  C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s 			page 9
 
 
 DEFINED SYMBOLS
                             *ABS*:00000000 stm32h7xx_it.c
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:20     .text.NMI_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:26     .text.NMI_Handler:00000000 NMI_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:43     .text.HardFault_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:49     .text.HardFault_Handler:00000000 HardFault_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:66     .text.MemManage_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:72     .text.MemManage_Handler:00000000 MemManage_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:89     .text.BusFault_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:95     .text.BusFault_Handler:00000000 BusFault_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:112    .text.UsageFault_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:118    .text.UsageFault_Handler:00000000 UsageFault_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:135    .text.SVC_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:141    .text.SVC_Handler:00000000 SVC_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:154    .text.DebugMon_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:160    .text.DebugMon_Handler:00000000 DebugMon_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:173    .text.PendSV_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:179    .text.PendSV_Handler:00000000 PendSV_Handler
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:192    .text.SysTick_Handler:00000000 $t
-C:\Users\12491\AppData\Local\Temp\ccSbW6J1.s:198    .text.SysTick_Handler:00000000 SysTick_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:20     .text.NMI_Handler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:26     .text.NMI_Handler:00000000 NMI_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:43     .text.HardFault_Handler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:49     .text.HardFault_Handler:00000000 HardFault_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:66     .text.MemManage_Handler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:72     .text.MemManage_Handler:00000000 MemManage_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:89     .text.BusFault_Handler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:95     .text.BusFault_Handler:00000000 BusFault_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:112    .text.UsageFault_Handler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:118    .text.UsageFault_Handler:00000000 UsageFault_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:135    .text.DebugMon_Handler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:141    .text.DebugMon_Handler:00000000 DebugMon_Handler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:154    .text.EXTI0_IRQHandler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:160    .text.EXTI0_IRQHandler:00000000 EXTI0_IRQHandler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:181    .text.TIM6_DAC_IRQHandler:00000000 $t
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:187    .text.TIM6_DAC_IRQHandler:00000000 TIM6_DAC_IRQHandler
+C:\Users\12491\AppData\Local\Temp\ccS2GNq2.s:207    .text.TIM6_DAC_IRQHandler:0000000c $d
 
 UNDEFINED SYMBOLS
-HAL_IncTick
+HAL_GPIO_EXTI_IRQHandler
+HAL_TIM_IRQHandler
+htim6

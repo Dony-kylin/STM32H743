@@ -77,6 +77,7 @@ void Error_Handler(void);
 #define AD7606_FD_GPIO_Port GPIOC
 #define AD7606_BUSY_Pin GPIO_PIN_0
 #define AD7606_BUSY_GPIO_Port GPIOB
+#define AD7606_BUSY_EXTI_IRQn EXTI0_IRQn
 #define AD7606_PG7_Pin GPIO_PIN_7
 #define AD7606_PG7_GPIO_Port GPIOG
 #define LCD_NSS_Pin GPIO_PIN_8

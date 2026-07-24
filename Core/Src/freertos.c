@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ad7606.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +45,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+osSemaphoreId_t AdcSemaphoreHandle;         /* ADC转换完成信号量 */
 /* USER CODE END Variables */
 /* Definitions for Task_DataProces */
 osThreadId_t Task_DataProcesHandle;
@@ -87,7 +87,8 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
+  /* 创建二进制信号量: 初始为0 (不可用), 最大计数1 */
+  AdcSemaphoreHandle = osSemaphoreNew(1, 0, NULL);
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -118,6 +119,7 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE BEGIN Header_StartTask_DataProcess */
 /**
   * @brief  Function implementing the Task_DataProces thread.
+  *         等待BUSY中断信号量 → 读取FMC数据 → 存入缓冲区
   * @param  argument: Not used
   * @retval None
   */
@@ -125,10 +127,42 @@ void MX_FREERTOS_Init(void) {
 void StartTask_DataProcess(void *argument)
 {
   /* USER CODE BEGIN StartTask_DataProcess */
+  uint16_t adc_raw[AD7606_NUM_CHANNELS];
+  AD7606_Frame frame;
+
+  /* 初始化AD7606: 无过采样, ±5V量程 */
+  AD7606_Init(AD7606_OS_NONE, AD7606_RANGE_5V);
+
+  /* 启动第一次转换 */
+  AD7606_StartConversion();
+
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    /* 等待BUSY中断释放信号量 (转换完成) */
+    osSemaphoreAcquire(AdcSemaphoreHandle, osWaitForever);
+
+    /* 通过FMC并行读取8通道数据 */
+    AD7606_ReadChannels(adc_raw);
+
+    /* 组装数据帧 (记录时间戳) */
+    for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+    {
+      frame.channels[i] = adc_raw[i];
+    }
+    frame.timestamp = HAL_GetTick();
+
+    /* ==================================================== */
+    /* TODO: 在此添加数据处理逻辑                            */
+    /* 例如: 存入环形缓冲区 / 通知LCD任务显示波形            */
+    /* ==================================================== */
+    (void)frame;  /* 消除未使用警告，实现处理逻辑后可删除 */
+
+    /* 启动下一次转换 (连续采集) */
+    AD7606_StartConversion();
+
+    /* 让低优先级任务有机会运行 */
+    osDelay(0);
   }
   /* USER CODE END StartTask_DataProcess */
 }
