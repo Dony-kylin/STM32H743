@@ -20,9 +20,6 @@ extern "C" {
 /** @brief FMC Bank1 NE1 基地址 (对应AD7606片选CS) */
 #define AD7606_FMC_BASE          ((uint32_t)0x60000000)
 
-/** @brief 通过FMC读取一个16位数据 (等效于一次CS+RD脉冲) */
-#define AD7606_Read()            (*(__IO uint16_t *)(AD7606_FMC_BASE))
-
 /** @brief AD7606 通道数 */
 #define AD7606_NUM_CHANNELS      8
 
@@ -45,9 +42,16 @@ typedef enum {
     AD7606_RANGE_10V = 1,  /*!< ±10V */
 } AD7606_Range;
 
+/** @brief AD7606 驱动状态 */
+typedef enum {
+    AD7606_STATUS_OK = 0,
+    AD7606_STATUS_INVALID_ARGUMENT,
+    AD7606_STATUS_BUSY,
+} AD7606_Status;
+
 /** @brief 一帧采集数据 (8通道) */
 typedef struct {
-    uint16_t channels[AD7606_NUM_CHANNELS];  /*!< CH1~CH8 原始ADC值 */
+    int16_t channels[AD7606_NUM_CHANNELS];   /*!< CH1~CH8 二补码原始值 */
     uint32_t timestamp;                        /*!< 采集时间戳 (uwTick) */
 } AD7606_Frame;
 
@@ -56,11 +60,14 @@ typedef struct {
 /** @brief 初始化AD7606 (复位、配置过采样、量程) */
 void AD7606_Init(AD7606_OSMode os, AD7606_Range range);
 
-/** @brief 启动一次转换 (CONVST脉冲) */
-void AD7606_StartConversion(void);
+/** @brief 检查 AD7606 是否正在转换 */
+uint8_t AD7606_IsBusy(void);
+
+/** @brief 触发 PA8 上并联的 CONVST_A/B，启动 8 通道转换 */
+AD7606_Status AD7606_StartConversion(void);
 
 /** @brief 通过FMC并行读取8通道数据 */
-void AD7606_ReadChannels(uint16_t *buf);
+AD7606_Status AD7606_ReadChannels(int16_t *buf);
 
 /** @brief BUSY下降沿中断回调 (释放信号量) */
 void AD7606_ConvCompleteCallback(void);

@@ -15,6 +15,28 @@
 /* freertos.c 中定义的信号量句柄 */
 extern osSemaphoreId_t AdcSemaphoreHandle;
 
+static const volatile uint16_t *const ad7606_data_reg =
+    (const volatile uint16_t *)AD7606_FMC_BASE;
+static volatile uint8_t ad7606_conversion_pending;
+
+static void AD7606_SetConvst(GPIO_PinState state)
+{
+    uint32_t bsrr = (state == GPIO_PIN_SET) ?
+        (uint32_t)AD7606_CONVST_AB_Pin :
+        ((uint32_t)AD7606_CONVST_AB_Pin << 16U);
+
+    AD7606_CONVST_AB_GPIO_Port->BSRR = bsrr;
+}
+
+static void AD7606_ConvstPulseDelay(void)
+{
+    /* Loop overhead makes this safely longer than the 25 ns minimum pulse. */
+    for (uint32_t i = 0U; i < 32U; ++i)
+    {
+        __NOP();
+    }
+}
+
 /* ======================== HAL 中断回调 ======================== */
 
 /**
@@ -41,6 +63,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   */
 void AD7606_Init(AD7606_OSMode os, AD7606_Range range)
 {
+    ad7606_conversion_pending = 0U;
+
+    /* 板上 CONVST_A/B 并联到 PA8，空闲电平为低。 */
+    AD7606_SetConvst(GPIO_PIN_RESET);
+
+    /* 配置过采样 OS[2:0]。 */
+    HAL_GPIO_WritePin(AD7606_OS0_GPIO_Port, AD7606_OS0_Pin,
+        (os & 0x01U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AD7606_OS1_GPIO_Port, AD7606_OS1_Pin,
+        (os & 0x02U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AD7606_OS2_GPIO_Port, AD7606_OS2_Pin,
+        (os & 0x04U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    /* RANGE: 低电平为 +/-5 V，高电平为 +/-10 V。 */
+    HAL_GPIO_WritePin(AD7606_RANGE_GPIO_Port, AD7606_RANGE_Pin,
+        (range == AD7606_RANGE_10V) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
     /* ---- 复位AD7606 (RST高电平脉冲) ---- */
     HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
     osDelay(2);                                  /* 复位前保持低电平 */
@@ -48,58 +87,73 @@ void AD7606_Init(AD7606_OSMode os, AD7606_Range range)
     osDelay(2);                                  /* RESET 高电平脉宽远大于 50 ns */
     HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
     osDelay(10);                                 /* 等待复位完成并稳定 */
-
-    /* ---- 配置过采样 OS[2:0] ---- */
-    HAL_GPIO_WritePin(AD7606_OS0_GPIO_Port, AD7606_OS0_Pin,
-        (os & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(AD7606_OS1_GPIO_Port, AD7606_OS1_Pin,
-        (os & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(AD7606_OS2_GPIO_Port, AD7606_OS2_Pin,
-        (os & 0x04) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-    /* ---- 配置量程 RANGE: 0=±5V, 1=±10V ---- */
-    HAL_GPIO_WritePin(AD7606_RANGE_GPIO_Port, AD7606_RANGE_Pin,
-        (range == AD7606_RANGE_10V) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-    /* ---- 正常模式 FD=0 (非滤波/省电模式) ---- */
-    HAL_GPIO_WritePin(AD7606_FD_GPIO_Port, AD7606_FD_Pin, GPIO_PIN_RESET);
 }
 
 /* ======================== 启动转换 ======================== */
 
 /**
-  * @brief  发送CONVST脉冲启动一次转换 (所有通道同时)
-  * @note   当前实现输出高-低-高电平，末次上升沿启动转换。
-  * @retval None
+  * @brief  通过 PA8 上并联的 CONVST_A/B 启动 8 通道转换
+  * @retval AD7606_STATUS_OK 或 AD7606_STATUS_BUSY
   */
-void AD7606_StartConversion(void)
+AD7606_Status AD7606_StartConversion(void)
 {
-    /* CONVST 最终由低变高；AD7606 在上升沿启动转换 */
-    HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_SET);
-    __NOP(); __NOP(); __NOP();                  /* 增加高电平保持时间 */
-    HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_RESET);
-    __NOP(); __NOP(); __NOP();                  /* 增加低电平保持时间 */
-    HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_SET);
+    if (AD7606_IsBusy() != 0U)
+    {
+        return AD7606_STATUS_BUSY;
+    }
+
+    __HAL_GPIO_EXTI_CLEAR_IT(AD7606_BUSY_Pin);
+    HAL_NVIC_ClearPendingIRQ(AD7606_BUSY_EXTI_IRQn);
+    ad7606_conversion_pending = 1U;
+
+    AD7606_SetConvst(GPIO_PIN_RESET);
+    AD7606_ConvstPulseDelay();
+    AD7606_SetConvst(GPIO_PIN_SET);
+    AD7606_ConvstPulseDelay();
+    AD7606_SetConvst(GPIO_PIN_RESET);
+
+    return AD7606_STATUS_OK;
 }
 
 /* ======================== 读取数据 ======================== */
 
 /**
   * @brief  通过FMC连续读取8个通道的数据
-  * @note   每个 AD7606_Read() 触发一次 FMC 读周期:
+  * @note   每次 volatile 加载触发一个 FMC 读周期:
   *         - NE1(CS) 自动拉低
   *         - NOE(RD) 产生读脉冲
   *         - 16位数据从 DB[15:0] 读取
   *         AD7606自动按 V1→V2→...→V8 顺序输出
-  * @param  buf  输出缓冲区 (至少8个uint16_t)
-  * @retval None
+  * @param  buf  输出缓冲区 (至少8个int16_t)
+  * @retval AD7606_STATUS_OK、AD7606_STATUS_BUSY 或
+  *         AD7606_STATUS_INVALID_ARGUMENT
   */
-void AD7606_ReadChannels(uint16_t *buf)
+AD7606_Status AD7606_ReadChannels(int16_t *buf)
 {
-    for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+    if (buf == NULL)
     {
-        buf[i] = AD7606_Read();
+        return AD7606_STATUS_INVALID_ARGUMENT;
     }
+
+    if (AD7606_IsBusy() != 0U)
+    {
+        return AD7606_STATUS_BUSY;
+    }
+
+    /* 强顺序 MPU 属性和 volatile 访问确保每次加载产生一个独立 RD 脉冲。 */
+    __DSB();
+    for (uint32_t i = 0U; i < AD7606_NUM_CHANNELS; ++i)
+    {
+        buf[i] = (int16_t)(*ad7606_data_reg);
+    }
+    __DSB();
+
+    return AD7606_STATUS_OK;
+}
+
+uint8_t AD7606_IsBusy(void)
+{
+    return (HAL_GPIO_ReadPin(AD7606_BUSY_GPIO_Port, AD7606_BUSY_Pin) == GPIO_PIN_SET) ? 1U : 0U;
 }
 
 /* ======================== 中断回调 ======================== */
@@ -112,6 +166,13 @@ void AD7606_ReadChannels(uint16_t *buf)
   */
 void AD7606_ConvCompleteCallback(void)
 {
-    /* 释放二进制信号量 → 通知采集任务 */
-    osSemaphoreRelease(AdcSemaphoreHandle);
+    if ((ad7606_conversion_pending != 0U) &&
+        (AD7606_IsBusy() == 0U) &&
+        (AdcSemaphoreHandle != NULL))
+    {
+        if (osSemaphoreRelease(AdcSemaphoreHandle) == osOK)
+        {
+            ad7606_conversion_pending = 0U;
+        }
+    }
 }
