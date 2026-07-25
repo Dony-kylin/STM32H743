@@ -61,6 +61,35 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#include <stdio.h>
+
+/**
+  * @brief  重定向 printf 输出到 USART1 (PA9/TX)
+  * @param  ch: 要发送的字符
+  * @retval 发送的字符
+  */
+int __io_putchar(int ch)
+{
+  /* 将换行符 \n 转换为 \r\n 以兼容串口终端 */
+  if (ch == '\n')
+  {
+    while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+    USART1->TDR = '\r';
+  }
+  while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+  USART1->TDR = ch;
+  return ch;
+}
+
+/**
+  * @brief  重定向 scanf 输入到 USART1 (PA10/RX)
+  * @retval 接收到的字符
+  */
+int __io_getchar(void)
+{
+  while (!(USART1->ISR & USART_ISR_RXNE_RXFNE)) {}
+  return (int)(USART1->RDR & 0xFF);
+}
 
 /* USER CODE END 0 */
 
@@ -99,9 +128,20 @@ int main(void)
   MX_FMC_Init();
   MX_QUADSPI_Init();
   MX_SPI1_Init();
-  MX_UART4_Init();
   MX_SPI6_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  /* 快速硬件自检：直接发一帧，不依赖 syscalls/printf */
+  {
+    const char *msg = "\r\n--- UART1 HW OK ---\r\n";
+    for (const char *p = msg; *p; p++)
+    {
+      while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+      USART1->TDR = *p;
+    }
+  }
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -201,7 +241,8 @@ void MPU_Config(void)
   MPU_InitStruct.Number = MPU_REGION_NUMBER0;
   MPU_InitStruct.BaseAddress = 0x0;
   MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
+  /* Keep the FMC window at 0x60000000 accessible for the AD7606. */
+  MPU_InitStruct.SubRegionDisable = 0x8F;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;

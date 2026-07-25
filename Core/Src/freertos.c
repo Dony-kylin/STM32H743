@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ad7606.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +46,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-osSemaphoreId_t AdcSemaphoreHandle;         /* ADC×ª»»Íê³ÉĞÅºÅÁ¿ */
+osSemaphoreId_t AdcSemaphoreHandle;         /* ADC è½¬æ¢å®Œæˆä¿¡å·é‡ */
 /* USER CODE END Variables */
 /* Definitions for Task_DataProces */
 osThreadId_t Task_DataProcesHandle;
@@ -87,7 +88,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* ´´½¨¶ş½øÖÆĞÅºÅÁ¿: ³õÊ¼Îª0 (²»¿ÉÓÃ), ×î´ó¼ÆÊı1 */
+  /* åˆ›å»ºäºŒè¿›åˆ¶ä¿¡å·é‡ï¼šåˆå§‹è®¡æ•°ä¸º 0ï¼Œæœ€å¤§è®¡æ•°ä¸º 1 */
   AdcSemaphoreHandle = osSemaphoreNew(1, 0, NULL);
   /* USER CODE END RTOS_SEMAPHORES */
 
@@ -119,7 +120,7 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE BEGIN Header_StartTask_DataProcess */
 /**
   * @brief  Function implementing the Task_DataProces thread.
-  *         µÈ´ıBUSYÖĞ¶ÏĞÅºÅÁ¿ ¡ú ¶ÁÈ¡FMCÊı¾İ ¡ú ´æÈë»º³åÇø
+  *         ç­‰å¾… BUSY ä¸­æ–­ä¿¡å·é‡ï¼Œè¯»å– FMC æ•°æ®å¹¶ç»„è£…é‡‡æ ·å¸§ã€‚
   * @param  argument: Not used
   * @retval None
   */
@@ -130,22 +131,22 @@ void StartTask_DataProcess(void *argument)
   uint16_t adc_raw[AD7606_NUM_CHANNELS];
   AD7606_Frame frame;
 
-  /* ³õÊ¼»¯AD7606: ÎŞ¹ı²ÉÑù, ¡À5VÁ¿³Ì */
+  /* åˆå§‹åŒ– AD7606ï¼šæ— è¿‡é‡‡æ ·ï¼Œè¾“å…¥é‡ç¨‹ä¸º +/-5 V */
   AD7606_Init(AD7606_OS_NONE, AD7606_RANGE_5V);
 
-  /* Æô¶¯µÚÒ»´Î×ª»» */
+  /* å¯åŠ¨ç¬¬ä¸€æ¬¡è½¬æ¢ */
   AD7606_StartConversion();
 
   /* Infinite loop */
   for(;;)
   {
-    /* µÈ´ıBUSYÖĞ¶ÏÊÍ·ÅĞÅºÅÁ¿ (×ª»»Íê³É) */
+    /* ç­‰å¾… BUSY ä¸‹é™æ²¿ä¸­æ–­é‡Šæ”¾ä¿¡å·é‡ï¼Œè¡¨ç¤ºè½¬æ¢å®Œæˆ */
     osSemaphoreAcquire(AdcSemaphoreHandle, osWaitForever);
 
-    /* Í¨¹ıFMC²¢ĞĞ¶ÁÈ¡8Í¨µÀÊı¾İ */
+    /* é€šè¿‡ FMC å¹¶è¡Œè¯»å– 8 é€šé“æ•°æ® */
     AD7606_ReadChannels(adc_raw);
 
-    /* ×é×°Êı¾İÖ¡ (¼ÇÂ¼Ê±¼ä´Á) */
+    /* ç»„è£…æ•°æ®å¸§å¹¶è®°å½•é‡‡æ ·æ—¶é—´æˆ³ */
     for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
     {
       frame.channels[i] = adc_raw[i];
@@ -153,16 +154,16 @@ void StartTask_DataProcess(void *argument)
     frame.timestamp = HAL_GetTick();
 
     /* ==================================================== */
-    /* TODO: ÔÚ´ËÌí¼ÓÊı¾İ´¦ÀíÂß¼­                            */
-    /* ÀıÈç: ´æÈë»·ĞÎ»º³åÇø / Í¨ÖªLCDÈÎÎñÏÔÊ¾²¨ĞÎ            */
+    /* TODO: åœ¨æ­¤æ·»åŠ æ•°æ®å¤„ç†é€»è¾‘                            */
+    /* ä¾‹å¦‚ï¼šå­˜å…¥ç¯å½¢ç¼“å†²åŒºï¼Œæˆ–é€šçŸ¥ LCD ä»»åŠ¡æ˜¾ç¤ºæ³¢å½¢         */
     /* ==================================================== */
-    (void)frame;  /* Ïû³ıÎ´Ê¹ÓÃ¾¯¸æ£¬ÊµÏÖ´¦ÀíÂß¼­ºó¿ÉÉ¾³ı */
+    (void)frame;  /* æš‚æœªä½¿ç”¨ï¼›å®ç°æ•°æ®å¤„ç†åå¯åˆ é™¤æ­¤è¯­å¥ */
 
-    /* Æô¶¯ÏÂÒ»´Î×ª»» (Á¬Ğø²É¼¯) */
+    /* å¯åŠ¨ä¸‹ä¸€æ¬¡è½¬æ¢ï¼Œç»§ç»­é‡‡é›† */
     AD7606_StartConversion();
 
-    /* ÈÃµÍÓÅÏÈ¼¶ÈÎÎñÓĞ»ú»áÔËĞĞ */
-    osDelay(0);
+    /* é˜»å¡ 10 ä¸ªç³»ç»ŸèŠ‚æ‹ï¼Œç¡®ä¿ä½ä¼˜å…ˆçº§ä»»åŠ¡èƒ½å¤Ÿè¿è¡Œ */
+    osDelay(10);
   }
   /* USER CODE END StartTask_DataProcess */
 }
@@ -180,7 +181,8 @@ void StartTask_Lcd(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    printf("LCD Task Running...\n");
+    osDelay(1000);
   }
   /* USER CODE END StartTask_Lcd */
 }

@@ -61,13 +61,6 @@ extern TIM_HandleTypeDef htim6;
 
 /* USER CODE END EV */
 
-/* Private function prototypes -----------------------------------------------*/
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* USER CODE END EV */
-
 /******************************************************************************/
 /*           Cortex Processor Interruption and Exception Handlers          */
 /******************************************************************************/
