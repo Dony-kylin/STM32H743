@@ -27,7 +27,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "lcd_spi_154.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -133,7 +133,9 @@ int main(void)
   MX_SPI6_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  SPI_LCD_Init();
+  LCD_DisplayString(10, 10, "STM32H743 Ready");
+  LCD_DisplayString(10, 40, "AD7606 8CH ADC");
   /* USER CODE END 2 */
 
   /* Init scheduler */

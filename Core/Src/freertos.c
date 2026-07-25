@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "ad7606.h"
 #include "usart.h"
+#include "lcd_spi_154.h"
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -84,7 +85,7 @@ osThreadId_t Task_LcdHandle;
 const osThreadAttr_t Task_Lcd_attributes = {
   .name = "Task_Lcd",
   .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -210,6 +211,7 @@ void StartTask_DataProcess(void *argument)
       {
         ++AdcTelemetryDropCount;
       }
+      taskYIELD();  /* 让出 CPU 给 UART 发送数据，避免饥饿 */
     }
 
     /* 下一轮立即重新触发，以获得 AD7606 的最高连续采样率。 */
@@ -227,9 +229,11 @@ void StartTask_DataProcess(void *argument)
 void StartTask_Lcd(void *argument)
 {
   /* USER CODE BEGIN StartTask_Lcd */
-  /* Infinite loop */
+  /* LCD 初始化已在 main.c 中完成 */
+
   for(;;)
   {
+    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);  /* LED 闪烁 */
     osDelay(1000);
   }
   /* USER CODE END StartTask_Lcd */
