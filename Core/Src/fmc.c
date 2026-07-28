@@ -61,9 +61,9 @@ void MX_FMC_Init(void)
   hsram2.Init.WriteFifo = FMC_WRITE_FIFO_ENABLE;
   hsram2.Init.PageSize = FMC_PAGE_SIZE_NONE;
   /* Timing */
-  Timing.AddressSetupTime = 4;
+  Timing.AddressSetupTime = 15;
   Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 5;
+  Timing.DataSetupTime = 30;
   Timing.BusTurnAroundDuration = 0;
   Timing.CLKDivision = 16;
   Timing.DataLatency = 17;
@@ -121,10 +121,10 @@ static void HAL_FMC_MspInit(void){
   PD10   ------> FMC_D15
   PD14   ------> FMC_D0
   PD15   ------> FMC_D1
-  PC7   ------> FMC_NE1
   PD0   ------> FMC_D2
   PD1   ------> FMC_D3
   PD4   ------> FMC_NOE
+  PD7   ------> FMC_NE1
   */
   /* GPIO_InitStruct */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
@@ -148,22 +148,14 @@ static void HAL_FMC_MspInit(void){
 
   /* GPIO_InitStruct */
   GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_14
-                          |GPIO_PIN_15|GPIO_PIN_0|GPIO_PIN_1|AD7606_NOE_RD_Pin;
+                          |GPIO_PIN_15|GPIO_PIN_0|GPIO_PIN_1|AD7606_NOE_RD_Pin
+                          |AD7606_NE1_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF12_FMC;
 
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /* GPIO_InitStruct */
-  GPIO_InitStruct.Pin = AD7606_NE1_CS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF9_FMC;
-
-  HAL_GPIO_Init(AD7606_NE1_CS_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN FMC_MspInit 1 */
 
@@ -209,10 +201,10 @@ static void HAL_FMC_MspDeInit(void){
   PD10   ------> FMC_D15
   PD14   ------> FMC_D0
   PD15   ------> FMC_D1
-  PC7   ------> FMC_NE1
   PD0   ------> FMC_D2
   PD1   ------> FMC_D3
   PD4   ------> FMC_NOE
+  PD7   ------> FMC_NE1
   */
 
   HAL_GPIO_DeInit(GPIOF, GPIO_PIN_0);
@@ -222,9 +214,8 @@ static void HAL_FMC_MspDeInit(void){
                           |GPIO_PIN_15);
 
   HAL_GPIO_DeInit(GPIOD, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_14
-                          |GPIO_PIN_15|GPIO_PIN_0|GPIO_PIN_1|AD7606_NOE_RD_Pin);
-
-  HAL_GPIO_DeInit(AD7606_NE1_CS_GPIO_Port, AD7606_NE1_CS_Pin);
+                          |GPIO_PIN_15|GPIO_PIN_0|GPIO_PIN_1|AD7606_NOE_RD_Pin
+                          |AD7606_NE1_CS_Pin);
 
   /* USER CODE BEGIN FMC_MspDeInit 1 */
 

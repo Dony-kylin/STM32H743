@@ -27,7 +27,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "lcd_spi_154.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,11 +56,41 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
+static void AD7606_MPU_Config(void);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#include <stdio.h>
+
+/**
+  * @brief  重定向 printf 输出到 USART1 (PA9/TX)
+  * @param  ch: 要发送的字符
+  * @retval 发送的字符
+  */
+int __io_putchar(int ch)
+{
+  /* 将换行符 \n 转换为 \r\n 以兼容串口终端 */
+  if (ch == '\n')
+  {
+    while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+    USART1->TDR = '\r';
+  }
+  while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+  USART1->TDR = ch;
+  return ch;
+}
+
+/**
+  * @brief  重定向 scanf 输入到 USART1 (PA10/RX)
+  * @retval 接收到的字符
+  */
+int __io_getchar(void)
+{
+  while (!(USART1->ISR & USART_ISR_RXNE_RXFNE)) {}
+  return (int)(USART1->RDR & 0xFF);
+}
 
 /* USER CODE END 0 */
 
@@ -84,6 +114,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  AD7606_MPU_Config();
 
   /* USER CODE END Init */
 
@@ -99,9 +130,12 @@ int main(void)
   MX_FMC_Init();
   MX_QUADSPI_Init();
   MX_SPI1_Init();
-  MX_UART4_Init();
   MX_SPI6_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  SPI_LCD_Init();
+  LCD_DisplayString(10, 10, "STM32H743 Ready");
+  LCD_DisplayString(10, 40, "AD7606 8CH ADC");
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -183,6 +217,31 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+static void AD7606_MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+  HAL_MPU_Disable();
+
+  /* Treat the FMC-mapped ADC as a register window, never as cacheable RAM. */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.BaseAddress = 0x60000000U;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
+  MPU_InitStruct.SubRegionDisable = 0x00U;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+  __DSB();
+  __ISB();
+}
 
 /* USER CODE END 4 */
 

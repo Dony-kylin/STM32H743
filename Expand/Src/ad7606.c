@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : ad7606.c
-  * @brief          : AD7606 ²¢ĞĞADCÇı¶¯ (FMC½Ó¿Ú + FreeRTOS)
+  * @brief          : AD7606 å¹¶è¡ŒADCé©±åŠ¨ (FMCæ¥å£ + FreeRTOS)
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -12,106 +12,167 @@
 #include "cmsis_os.h"      /* CMSIS RTOS v2 API */
 
 /* External variables --------------------------------------------------------*/
-/* freertos.c ÖĞ¶¨ÒåµÄĞÅºÅÁ¿¾ä±ú */
+/* freertos.c ä¸­å®šä¹‰çš„ä¿¡å·é‡å¥æŸ„ */
 extern osSemaphoreId_t AdcSemaphoreHandle;
 
-/* ======================== HAL ÖĞ¶Ï»Øµ÷ ======================== */
+static const volatile uint16_t *const ad7606_data_reg =
+    (const volatile uint16_t *)AD7606_FMC_BASE;
+static volatile uint8_t ad7606_conversion_pending;
+
+static void AD7606_SetConvst(GPIO_PinState state)
+{
+    uint32_t bsrr = (state == GPIO_PIN_SET) ?
+        (uint32_t)AD7606_CONVST_AB_Pin :
+        ((uint32_t)AD7606_CONVST_AB_Pin << 16U);
+
+    AD7606_CONVST_AB_GPIO_Port->BSRR = bsrr;
+}
+
+static void AD7606_ConvstPulseDelay(void)
+{
+    /* Loop overhead makes this safely longer than the 25 ns minimum pulse. */
+    for (uint32_t i = 0U; i < 32U; ++i)
+    {
+        __NOP();
+    }
+}
+
+/* ======================== HAL ä¸­æ–­å›è°ƒ ======================== */
 
 /**
-  * @brief  GPIO EXTI ÖĞ¶Ï»Øµ÷ (ÓÉ HAL_GPIO_EXTI_IRQHandler µ÷ÓÃ)
-  * @param  GPIO_Pin  ´¥·¢ÖĞ¶ÏµÄÒı½Å
+  * @brief  GPIO EXTI ä¸­æ–­å›è°ƒ (ç”± HAL_GPIO_EXTI_IRQHandler è°ƒç”¨)
+  * @param  GPIO_Pin  è§¦å‘ä¸­æ–­çš„å¼•è„š
   * @retval None
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == AD7606_BUSY_Pin)
     {
-        /* BUSYÏÂ½µÑØ ¡ú ×ª»»Íê³É, Í¨Öª²É¼¯ÈÎÎñ */
+        /* BUSYä¸‹é™æ²¿ â†’ è½¬æ¢å®Œæˆ, é€šçŸ¥é‡‡é›†ä»»åŠ¡ */
         AD7606_ConvCompleteCallback();
     }
 }
 
-/* ======================== ³õÊ¼»¯ ======================== */
+/* ======================== åˆå§‹åŒ– ======================== */
 
 /**
-  * @brief  ³õÊ¼»¯AD7606£º¸´Î»Ğ¾Æ¬£¬ÅäÖÃ¹ı²ÉÑùºÍÁ¿³Ì
-  * @param  os   ¹ı²ÉÑùÄ£Ê½ (AD7606_OS_NONE ~ AD7606_OS_64X)
-  * @param  range Á¿³Ì (¡À5V »ò ¡À10V)
+  * @brief  åˆå§‹åŒ–AD7606ï¼šå¤ä½èŠ¯ç‰‡ï¼Œé…ç½®è¿‡é‡‡æ ·å’Œé‡ç¨‹
+  * @param  os   è¿‡é‡‡æ ·æ¨¡å¼ (AD7606_OS_NONE ~ AD7606_OS_64X)
+  * @param  range é‡ç¨‹ (Â±5V æˆ– Â±10V)
   * @retval None
   */
 void AD7606_Init(AD7606_OSMode os, AD7606_Range range)
 {
-    /* ---- ¸´Î»AD7606 (RST¸ßµçÆ½Âö³å) ---- */
-    HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
-    osDelay(2);                                  /* tRSTµÍ > 50ns */
-    HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_SET);
-    osDelay(2);                                  /* µÈ´ı¸´Î»Íê³É */
-    HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
-    osDelay(10);                                 /* ÎÈ¶¨µÈ´ı */
+    ad7606_conversion_pending = 0U;
 
-    /* ---- ÅäÖÃ¹ı²ÉÑù OS[2:0] ---- */
+    /* æ¿ä¸Š CONVST_A/B å¹¶è”åˆ° PA8ï¼Œç©ºé—²ç”µå¹³ä¸ºä½ã€‚ */
+    AD7606_SetConvst(GPIO_PIN_RESET);
+
+    /* é…ç½®è¿‡é‡‡æ · OS[2:0]ã€‚ */
     HAL_GPIO_WritePin(AD7606_OS0_GPIO_Port, AD7606_OS0_Pin,
-        (os & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        (os & 0x01U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
     HAL_GPIO_WritePin(AD7606_OS1_GPIO_Port, AD7606_OS1_Pin,
-        (os & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        (os & 0x02U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
     HAL_GPIO_WritePin(AD7606_OS2_GPIO_Port, AD7606_OS2_Pin,
-        (os & 0x04) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        (os & 0x04U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
-    /* ---- ÅäÖÃÁ¿³Ì RANGE: 0=¡À5V, 1=¡À10V ---- */
+    /* RANGE: ä½ç”µå¹³ä¸º +/-5 Vï¼Œé«˜ç”µå¹³ä¸º +/-10 Vã€‚ */
     HAL_GPIO_WritePin(AD7606_RANGE_GPIO_Port, AD7606_RANGE_Pin,
         (range == AD7606_RANGE_10V) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
-    /* ---- Õı³£Ä£Ê½ FD=0 (·ÇÂË²¨/Ê¡µçÄ£Ê½) ---- */
-    HAL_GPIO_WritePin(AD7606_FD_GPIO_Port, AD7606_FD_Pin, GPIO_PIN_RESET);
+    /* ---- å¤ä½AD7606 (RSTé«˜ç”µå¹³è„‰å†²) ---- */
+    HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
+    osDelay(2);                                  /* å¤ä½å‰ä¿æŒä½ç”µå¹³ */
+    HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_SET);
+    osDelay(2);                                  /* RESET é«˜ç”µå¹³è„‰å®½è¿œå¤§äº 50 ns */
+    HAL_GPIO_WritePin(AD7606_RST_GPIO_Port, AD7606_RST_Pin, GPIO_PIN_RESET);
+    osDelay(10);                                 /* ç­‰å¾…å¤ä½å®Œæˆå¹¶ç¨³å®š */
 }
 
-/* ======================== Æô¶¯×ª»» ======================== */
+/* ======================== å¯åŠ¨è½¬æ¢ ======================== */
 
 /**
-  * @brief  ·¢ËÍCONVSTÂö³åÆô¶¯Ò»´Î×ª»» (ËùÓĞÍ¨µÀÍ¬Ê±)
-  * @note   CONVST: ¸ß¡úµÍ¡ú¸ß, µÍµçÆ½±£³Ö>25ns
-  * @retval None
+  * @brief  é€šè¿‡ PA8 ä¸Šå¹¶è”çš„ CONVST_A/B å¯åŠ¨ 8 é€šé“è½¬æ¢
+  * @retval AD7606_STATUS_OK æˆ– AD7606_STATUS_BUSY
   */
-void AD7606_StartConversion(void)
+AD7606_Status AD7606_StartConversion(void)
 {
-    /* CONVST ´Ó¸ßÀ­µÍ, ÔÙÀ­¸ß, ²úÉúÏÂ½µÑØ´¥·¢×ª»» */
-    HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_SET);
-    __NOP(); __NOP(); __NOP();                  /* >25ns @480MHz */
-    HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_RESET);
-    __NOP(); __NOP(); __NOP();                  /* ±£³ÖµÍµçÆ½ */
-    HAL_GPIO_WritePin(AD7606_CACB_GPIO_Port, AD7606_CACB_Pin, GPIO_PIN_SET);
-}
-
-/* ======================== ¶ÁÈ¡Êı¾İ ======================== */
-
-/**
-  * @brief  Í¨¹ıFMCÁ¬Ğø¶ÁÈ¡8¸öÍ¨µÀµÄÊı¾İ
-  * @note   Ã¿¸ö AD7606_Read() ´¥·¢Ò»´Î FMC ¶ÁÖÜÆÚ:
-  *         - NE1(CS) ×Ô¶¯À­µÍ
-  *         - NOE(RD) ²úÉú¶ÁÂö³å
-  *         - 16Î»Êı¾İ´Ó DB[15:0] ¶ÁÈ¡
-  *         AD7606×Ô¶¯°´ V1¡úV2¡ú...¡úV8 Ë³ĞòÊä³ö
-  * @param  buf  Êä³ö»º³åÇø (ÖÁÉÙ8¸öuint16_t)
-  * @retval None
-  */
-void AD7606_ReadChannels(uint16_t *buf)
-{
-    for (int i = 0; i < AD7606_NUM_CHANNELS; i++)
+    if (AD7606_IsBusy() != 0U)
     {
-        buf[i] = AD7606_Read();
+        return AD7606_STATUS_BUSY;
     }
+
+    __HAL_GPIO_EXTI_CLEAR_IT(AD7606_BUSY_Pin);
+    HAL_NVIC_ClearPendingIRQ(AD7606_BUSY_EXTI_IRQn);
+    ad7606_conversion_pending = 1U;
+
+    AD7606_SetConvst(GPIO_PIN_RESET);
+    AD7606_ConvstPulseDelay();
+    AD7606_SetConvst(GPIO_PIN_SET);
+    AD7606_ConvstPulseDelay();
+    AD7606_SetConvst(GPIO_PIN_RESET);
+
+    return AD7606_STATUS_OK;
 }
 
-/* ======================== ÖĞ¶Ï»Øµ÷ ======================== */
+/* ======================== è¯»å–æ•°æ® ======================== */
 
 /**
-  * @brief  BUSYÏÂ½µÑØÖĞ¶Ï»Øµ÷
-  * @note   ÔÚ stm32h7xx_it.c µÄ EXTI0_IRQHandler ÖĞµ÷ÓÃ
-  *         ÊÍ·ÅĞÅºÅÁ¿, Í¨Öª StartTask_DataProcess ¶ÁÈ¡Êı¾İ
+  * @brief  é€šè¿‡FMCè¿ç»­è¯»å–8ä¸ªé€šé“çš„æ•°æ®
+  * @note   æ¯æ¬¡ volatile åŠ è½½è§¦å‘ä¸€ä¸ª FMC è¯»å‘¨æœŸ:
+  *         - NE1(CS) è‡ªåŠ¨æ‹‰ä½
+  *         - NOE(RD) äº§ç”Ÿè¯»è„‰å†²
+  *         - 16ä½æ•°æ®ä» DB[15:0] è¯»å–
+  *         AD7606è‡ªåŠ¨æŒ‰ V1â†’V2â†’...â†’V8 é¡ºåºè¾“å‡º
+  * @param  buf  è¾“å‡ºç¼“å†²åŒº (è‡³å°‘8ä¸ªint16_t)
+  * @retval AD7606_STATUS_OKã€AD7606_STATUS_BUSY æˆ–
+  *         AD7606_STATUS_INVALID_ARGUMENT
+  */
+AD7606_Status AD7606_ReadChannels(int16_t *buf)
+{
+    if (buf == NULL)
+    {
+        return AD7606_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (AD7606_IsBusy() != 0U)
+    {
+        return AD7606_STATUS_BUSY;
+    }
+
+    /* å¼ºé¡ºåº MPU å±æ€§å’Œ volatile è®¿é—®ç¡®ä¿æ¯æ¬¡åŠ è½½äº§ç”Ÿä¸€ä¸ªç‹¬ç«‹ RD è„‰å†²ã€‚ */
+    __DSB();
+    for (uint32_t i = 0U; i < AD7606_NUM_CHANNELS; ++i)
+    {
+        buf[i] = (int16_t)(*ad7606_data_reg);
+    }
+    __DSB();
+
+    return AD7606_STATUS_OK;
+}
+
+uint8_t AD7606_IsBusy(void)
+{
+    return (HAL_GPIO_ReadPin(AD7606_BUSY_GPIO_Port, AD7606_BUSY_Pin) == GPIO_PIN_SET) ? 1U : 0U;
+}
+
+/* ======================== ä¸­æ–­å›è°ƒ ======================== */
+
+/**
+  * @brief  BUSYä¸‹é™æ²¿ä¸­æ–­å›è°ƒ
+  * @note   åœ¨ stm32h7xx_it.c çš„ EXTI0_IRQHandler ä¸­è°ƒç”¨
+  *         é‡Šæ”¾ä¿¡å·é‡, é€šçŸ¥ StartTask_DataProcess è¯»å–æ•°æ®
   * @retval None
   */
 void AD7606_ConvCompleteCallback(void)
 {
-    /* ÊÍ·Å¶ş½øÖÆĞÅºÅÁ¿ ¡ú Í¨Öª²É¼¯ÈÎÎñ */
-    osSemaphoreRelease(AdcSemaphoreHandle);
+    if ((ad7606_conversion_pending != 0U) &&
+        (AD7606_IsBusy() == 0U) &&
+        (AdcSemaphoreHandle != NULL))
+    {
+        if (osSemaphoreRelease(AdcSemaphoreHandle) == osOK)
+        {
+            ad7606_conversion_pending = 0U;
+        }
+    }
 }
