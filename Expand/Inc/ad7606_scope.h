@@ -8,9 +8,9 @@ extern "C" {
 #include <stdint.h>
 
 /*
- * Keep one of every four conversions for the LCD timebase. With a 200 kSPS
- * converter rate, the 4096-point display history spans about 82 ms and still
- * has a 50 kSPS effective display rate. Set to 1 for high-frequency inputs.
+ * Keep one of every four conversions for the LCD timebase. At the default
+ * 25.6 kSPS rate, the 4096-point display history spans about 640 ms with a
+ * 6.4 kSPS effective display rate. Set to 1 for high-frequency inputs.
  */
 #ifndef AD7606_SCOPE_DECIMATION
 #define AD7606_SCOPE_DECIMATION 4U

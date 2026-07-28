@@ -40,6 +40,7 @@ static int16_t scope_ring_samples[SCOPE_RING_SIZE] SCOPE_D2_RAM;
 static uint32_t scope_ring_cycles[SCOPE_RING_SIZE] SCOPE_D2_RAM;
 static int16_t scope_snapshot_samples[SCOPE_RING_SIZE] SCOPE_D2_RAM;
 static uint32_t scope_snapshot_cycles[SCOPE_RING_SIZE] SCOPE_D2_RAM;
+static int16_t scope_auto_samples[SCOPE_SNAPSHOT_LIMIT] SCOPE_D2_RAM;
 static uint16_t scope_graph[SCOPE_GRAPH_WIDTH * SCOPE_GRAPH_HEIGHT] SCOPE_D2_RAM;
 
 static volatile uint32_t scope_write_count;
@@ -55,7 +56,7 @@ static volatile uint32_t scope_input_sample_rate_hz;
 static volatile uint8_t scope_running;
 static volatile uint8_t scope_center_auto;
 
-static uint32_t ScopeTakeSnapshot(void);
+static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles);
 static void ScopeAnalyzeAndRender(uint32_t count,
                                   const AD7606_ScopeConfig *config);
 static uint32_t ScopeIntegerSqrt(uint64_t value);
@@ -258,38 +259,25 @@ uint8_t AD7606_ScopeAutoConfigure(void)
 {
   static const uint32_t vdiv_options[] =
       {50U, 100U, 200U, 500U, 1000U, 2000U};
-  static const uint32_t decimation_options[] =
-      {64U, 32U, 16U, 8U, 4U, 2U, 1U};
-  uint32_t count = ScopeTakeSnapshot();
+  uint32_t count = ScopeTakeSnapshot(scope_auto_samples, NULL);
   int16_t minimum;
   int16_t maximum;
-  int64_t sum = 0;
-  int32_t mean;
   int32_t midpoint;
   int32_t positive_peak;
   int32_t negative_peak;
   uint32_t peak_mv;
   uint32_t selected_vdiv = 2000U;
-  uint32_t selected_decimation = scope_decimation;
-  uint32_t display_sample_rate_hz = 0U;
-  uint32_t input_sample_rate_hz = 0U;
-  uint32_t frequency_hz = 0U;
-  uint32_t first_crossing = 0U;
-  uint32_t last_crossing = 0U;
-  uint32_t crossing_count = 0U;
-  int32_t hysteresis;
-  uint8_t trigger_armed = 0U;
 
   if (count < SCOPE_GRAPH_WIDTH)
   {
     return 0U;
   }
 
-  minimum = scope_snapshot_samples[0];
-  maximum = scope_snapshot_samples[0];
+  minimum = scope_auto_samples[0];
+  maximum = scope_auto_samples[0];
   for (uint32_t i = 0U; i < count; ++i)
   {
-    int32_t value = scope_snapshot_samples[i];
+    int32_t value = scope_auto_samples[i];
     if (value < minimum)
     {
       minimum = (int16_t)value;
@@ -298,9 +286,7 @@ uint8_t AD7606_ScopeAutoConfigure(void)
     {
       maximum = (int16_t)value;
     }
-    sum += value;
   }
-  mean = (int32_t)(sum / (int64_t)count);
   midpoint = ((int32_t)maximum + minimum) / 2;
   positive_peak = (int32_t)maximum - midpoint;
   negative_peak = midpoint - (int32_t)minimum;
@@ -317,86 +303,17 @@ uint8_t AD7606_ScopeAutoConfigure(void)
     }
   }
 
-  {
-    uint32_t elapsed_cycles =
-        scope_snapshot_cycles[count - 1U] - scope_snapshot_cycles[0];
-    if (elapsed_cycles != 0U)
-    {
-      display_sample_rate_hz = (uint32_t)
-          (((uint64_t)(count - 1U) * SystemCoreClock) / elapsed_cycles);
-      input_sample_rate_hz = display_sample_rate_hz * scope_decimation;
-    }
-  }
-
-  hysteresis = ((int32_t)maximum - (int32_t)minimum) / 20;
-  if (hysteresis < 8)
-  {
-    hysteresis = 8;
-  }
-  for (uint32_t i = 0U; i < count; ++i)
-  {
-    int32_t value = scope_snapshot_samples[i];
-    if (value <= (mean - hysteresis))
-    {
-      trigger_armed = 1U;
-    }
-    else if ((trigger_armed != 0U) && (value >= (mean + hysteresis)))
-    {
-      if (crossing_count == 0U)
-      {
-        first_crossing = i;
-      }
-      last_crossing = i;
-      ++crossing_count;
-      trigger_armed = 0U;
-    }
-  }
-
-  if ((crossing_count >= 2U) && (last_crossing > first_crossing))
-  {
-    uint32_t elapsed_cycles =
-        scope_snapshot_cycles[last_crossing] -
-        scope_snapshot_cycles[first_crossing];
-    uint32_t periods = crossing_count - 1U;
-    if (elapsed_cycles != 0U)
-    {
-      frequency_hz = (uint32_t)
-          (((uint64_t)SystemCoreClock * periods) / elapsed_cycles);
-    }
-  }
-
-  if ((frequency_hz != 0U) && (input_sample_rate_hz != 0U))
-  {
-    /*
-     * Prefer the largest reduction that still leaves at least 40 displayed
-     * samples per cycle. If the input is too fast even for that target, keep
-     * every ADC sample instead of retaining a slower previous setting.
-     */
-    selected_decimation = 1U;
-    for (uint32_t i = 0U;
-         i < (sizeof(decimation_options) /
-              sizeof(decimation_options[0])); ++i)
-    {
-      if ((uint64_t)input_sample_rate_hz >=
-          ((uint64_t)frequency_hz * 40U * decimation_options[i]))
-      {
-        selected_decimation = decimation_options[i];
-        break;
-      }
-    }
-  }
-
+  /*
+   * DEC controls work performed by the 200 kSPS BUSY interrupt. Keep the
+   * user's current value here: changing it from AUTO can abruptly multiply
+   * ISR load and starve the scheduler before the command can reply or save.
+   * Automatic timebase selection is handled by the LCD renderer.
+   */
   taskENTER_CRITICAL();
   scope_mv_per_div = selected_vdiv;
   scope_center_mv = ScopeRawToMv(midpoint);
   scope_center_auto = 1U;
   scope_time_per_div_us = 0U;
-  if (scope_decimation != selected_decimation)
-  {
-    scope_decimation = selected_decimation;
-    scope_write_count = 0U;
-    scope_decimation_count = 0U;
-  }
   taskEXIT_CRITICAL();
   return 1U;
 }
@@ -423,7 +340,8 @@ void AD7606_ScopeDisplayInit(void)
 void AD7606_ScopeDisplayRefresh(void)
 {
   AD7606_ScopeConfig config;
-  uint32_t count = ScopeTakeSnapshot();
+  uint32_t count =
+      ScopeTakeSnapshot(scope_snapshot_samples, scope_snapshot_cycles);
 
   AD7606_ScopeGetConfig(&config);
   if (count < SCOPE_GRAPH_WIDTH)
@@ -439,7 +357,7 @@ void AD7606_ScopeDisplayRefresh(void)
   ScopeAnalyzeAndRender(count, &config);
 }
 
-static uint32_t ScopeTakeSnapshot(void)
+static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles)
 {
   /*
    * Keep enough unused ring entries ahead of the snapshot so the 200 kSPS
@@ -456,8 +374,11 @@ static uint32_t ScopeTakeSnapshot(void)
     for (uint32_t i = 0U; i < count; ++i)
     {
       uint32_t source = (first + i) & SCOPE_RING_MASK;
-      scope_snapshot_samples[i] = scope_ring_samples[source];
-      scope_snapshot_cycles[i] = scope_ring_cycles[source];
+      samples[i] = scope_ring_samples[source];
+      if (cycles != NULL)
+      {
+        cycles[i] = scope_ring_cycles[source];
+      }
     }
 
     __DMB();

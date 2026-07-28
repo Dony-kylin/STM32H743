@@ -43,9 +43,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define AD7606_BUSY_TIMEOUT_TICKS  100U
-#define AD7606_SAMPLE_RATE_HZ      200000U
-/* At 200 kSPS this emits about 1000 CSV frames/s. */
-#define AD7606_UART_DECIMATION     200U
+#define AD7606_SAMPLE_RATE_HZ      25600U
+/* 12.8 CSV frames/s at 25.6 kSPS; at most 100/s at the 200 kSPS limit. */
+#define AD7606_UART_DECIMATION     2000U
 #define AD7606_FRAME_QUEUE_DEPTH   8U
 #define AD7606_UART_BUFFER_SIZE    128U
 #define AD7606_CONFIG_RANGE        AD7606_RANGE_5V
@@ -74,6 +74,7 @@ static AD7606_ScopeConfig ScopeStartupConfig;
 static uint32_t ScopeStartupSampleRateHz = AD7606_SAMPLE_RATE_HZ;
 static uint8_t ScopeStartupStreamEnabled = 1U;
 static uint8_t ScopeStartupConfigValid;
+static uint8_t ScopeConfigDirty;
 
 /* Task_Uart: CubeMX 不会自动生成，放在 USER CODE 区防止被清除 */
 osThreadId_t Task_UartHandle;
@@ -87,7 +88,7 @@ const osThreadAttr_t Task_Uart_attributes = {
 osThreadId_t Task_DataProcesHandle;
 const osThreadAttr_t Task_DataProces_attributes = {
   .name = "Task_DataProces",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Task_Lcd */
@@ -108,7 +109,7 @@ static void UART_HandleScopeCommand(char *command);
 static void UART_SendText(const char *text);
 static void UART_SendScopeStatus(void);
 static uint8_t UART_SaveScopeConfig(void);
-static void UART_AcknowledgeAndSave(const char *ok_message);
+static void UART_Acknowledge(const char *ok_message);
 static void AD7606_ApplyStartupScopeConfig(void);
 void StartTask_Uart(void *argument);
 void AD7606_FrameReadyCallback(const int16_t *channels);
@@ -132,6 +133,7 @@ void MX_FREERTOS_Init(void) {
   ScopeStartupConfigValid = AD7606_ScopeStoreLoad(
       &ScopeStartupConfig, &ScopeStartupSampleRateHz,
       &ScopeStartupStreamEnabled);
+  ScopeConfigDirty = (ScopeStartupConfigValid == 0U) ? 1U : 0U;
   if (ScopeStartupConfigValid != 0U)
   {
     UartStreamEnabled = ScopeStartupStreamEnabled;
@@ -196,9 +198,9 @@ void StartTask_DataProcess(void *argument)
   AD7606_PrepareAcquisition();
 
   /*
-   * TIM1_CH1 generates a hardware-timed CONVST edge every 5 us. Samples are
-   * read directly in the BUSY falling-edge interrupt, so LCD/UART scheduling
-   * cannot stretch the conversion interval.
+   * TIM1_CH1 generates the hardware-timed CONVST waveform. Samples are read
+   * directly in the BUSY falling-edge interrupt, so LCD/UART scheduling
+   * cannot stretch the configured conversion interval.
    */
   if (AD7606_StartContinuous(ScopeStartupSampleRateHz) ==
       AD7606_STATUS_OK)
@@ -271,11 +273,6 @@ void AD7606_FrameReadyCallback(const int16_t *channels)
   AD7606_Frame frame;
 
   AD7606_ScopePushFrame(channels);
-
-  for (uint32_t i = 0U; i < AD7606_NUM_CHANNELS; ++i)
-  {
-    AdcLatestFrame.channels[i] = channels[i];
-  }
   ++AdcFrameCount;
 
   ++uart_decimation_count;
@@ -287,11 +284,13 @@ void AD7606_FrameReadyCallback(const int16_t *channels)
     for (uint32_t i = 0U; i < AD7606_NUM_CHANNELS; ++i)
     {
       frame.channels[i] = channels[i];
+      AdcLatestFrame.channels[i] = channels[i];
     }
     frame.timestamp = timestamp;
     AdcLatestFrame.timestamp = timestamp;
 
-    if (osMessageQueuePut(AdcFrameQueueHandle, &frame, 0U, 0U) != osOK)
+    if ((UartStreamEnabled != 0U) &&
+        (osMessageQueuePut(AdcFrameQueueHandle, &frame, 0U, 0U) != osOK))
     {
       ++AdcTelemetryDropCount;
     }
@@ -462,48 +461,61 @@ static void UART_HandleScopeCommand(char *command)
         "#CMD RATE 5000..200000(sps)\r\n"
         "#CMD TIME AUTO or TIME 10..1000000(us/div)\r\n"
         "#CMD DEC 1/2/4/8/16/32/64 | REFRESH 50..2000(ms)\r\n"
-        "#CMD AUTO (fit VDIV/CENTER/TIME/DEC)\r\n"
-        "#CMD RUN | STOP | STREAM ON/OFF | STATUS | HELP\r\n");
+        "#CMD AUTO (fit VDIV/CENTER/TIME; keep DEC)\r\n"
+        "#CMD RUN | STOP | STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
   }
   else if (strcmp(cursor, "STATUS") == 0)
   {
     UART_SendScopeStatus();
   }
+  else if (strcmp(cursor, "SAVE") == 0)
+  {
+    if (UART_SaveScopeConfig() != 0U)
+    {
+      ScopeConfigDirty = 0U;
+      UART_SendText("#OK SAVED TO FLASH\r\n");
+    }
+    else
+    {
+      UART_SendText("#ERR FLASH save failed\r\n");
+    }
+    UART_SendScopeStatus();
+  }
   else if (strcmp(cursor, "RUN") == 0)
   {
     AD7606_ScopeSetRunning(1U);
-    UART_AcknowledgeAndSave("#OK RUN SAVED\r\n");
+    UART_Acknowledge("#OK RUN\r\n");
   }
   else if (strcmp(cursor, "STOP") == 0)
   {
     AD7606_ScopeSetRunning(0U);
-    UART_AcknowledgeAndSave("#OK HOLD SAVED\r\n");
+    UART_Acknowledge("#OK HOLD\r\n");
   }
   else if (strcmp(cursor, "STREAM ON") == 0)
   {
     UartStreamEnabled = 1U;
-    UART_AcknowledgeAndSave("#OK STREAM ON SAVED\r\n");
+    UART_Acknowledge("#OK STREAM ON\r\n");
   }
   else if (strcmp(cursor, "STREAM OFF") == 0)
   {
     UartStreamEnabled = 0U;
-    UART_AcknowledgeAndSave("#OK STREAM OFF SAVED\r\n");
+    UART_Acknowledge("#OK STREAM OFF\r\n");
   }
   else if (strcmp(cursor, "TIME AUTO") == 0)
   {
     (void)AD7606_ScopeSetTimePerDivUs(0U);
-    UART_AcknowledgeAndSave("#OK TIME AUTO SAVED\r\n");
+    UART_Acknowledge("#OK TIME AUTO\r\n");
   }
   else if (strcmp(cursor, "CENTER AUTO") == 0)
   {
     AD7606_ScopeSetCenterAuto(1U);
-    UART_AcknowledgeAndSave("#OK CENTER AUTO SAVED\r\n");
+    UART_Acknowledge("#OK CENTER AUTO\r\n");
   }
   else if (strcmp(cursor, "AUTO") == 0)
   {
     if (AD7606_ScopeAutoConfigure() != 0U)
     {
-      UART_AcknowledgeAndSave("#OK AUTO SAVED\r\n");
+      UART_Acknowledge("#OK AUTO\r\n");
     }
     else
     {
@@ -514,7 +526,7 @@ static void UART_HandleScopeCommand(char *command)
   {
     if (AD7606_ScopeSetChannel((uint32_t)value) != 0U)
     {
-      UART_AcknowledgeAndSave("#OK CH SAVED\r\n");
+      UART_Acknowledge("#OK CH\r\n");
     }
     else
     {
@@ -525,7 +537,7 @@ static void UART_HandleScopeCommand(char *command)
   {
     if (AD7606_ScopeSetMvPerDiv((uint32_t)value) != 0U)
     {
-      UART_AcknowledgeAndSave("#OK VDIV SAVED\r\n");
+      UART_Acknowledge("#OK VDIV\r\n");
     }
     else
     {
@@ -536,7 +548,7 @@ static void UART_HandleScopeCommand(char *command)
   {
     if (AD7606_ScopeSetCenterMv((int32_t)signed_value) != 0U)
     {
-      UART_AcknowledgeAndSave("#OK CENTER SAVED\r\n");
+      UART_Acknowledge("#OK CENTER\r\n");
     }
     else
     {
@@ -552,7 +564,7 @@ static void UART_HandleScopeCommand(char *command)
 
       AD7606_ScopeGetConfig(&config);
       (void)AD7606_ScopeSetDecimation(config.decimation);
-      UART_AcknowledgeAndSave("#OK RATE SAVED\r\n");
+      UART_Acknowledge("#OK RATE\r\n");
     }
     else
     {
@@ -563,7 +575,7 @@ static void UART_HandleScopeCommand(char *command)
   {
     if (AD7606_ScopeSetTimePerDivUs((uint32_t)value) != 0U)
     {
-      UART_AcknowledgeAndSave("#OK TIME SAVED\r\n");
+      UART_Acknowledge("#OK TIME\r\n");
     }
     else
     {
@@ -574,7 +586,7 @@ static void UART_HandleScopeCommand(char *command)
   {
     if (AD7606_ScopeSetDecimation((uint32_t)value) != 0U)
     {
-      UART_AcknowledgeAndSave("#OK DEC SAVED\r\n");
+      UART_Acknowledge("#OK DEC\r\n");
     }
     else
     {
@@ -585,7 +597,7 @@ static void UART_HandleScopeCommand(char *command)
   {
     if (AD7606_ScopeSetRefreshMs((uint32_t)value) != 0U)
     {
-      UART_AcknowledgeAndSave("#OK REFRESH SAVED\r\n");
+      UART_Acknowledge("#OK REFRESH\r\n");
     }
     else
     {
@@ -644,7 +656,7 @@ static void UART_SendScopeStatus(void)
   }
 
   (void)snprintf(status, sizeof(status),
-      "#SCOPE %s CH=%u VDIV=%umV CENTER=%s TIME=%s DEC=%u RATE=%luHz FS=%luHz OVR=%lu REFRESH=%lums STREAM=%s\r\n",
+      "#SCOPE %s CH=%u VDIV=%umV CENTER=%s TIME=%s DEC=%u RATE=%luHz FS=%luHz OVR=%lu REFRESH=%lums STREAM=%s CFG=%s\r\n",
       (config.running != 0U) ? "RUN" : "HOLD",
       (unsigned int)config.channel,
       (unsigned int)config.mv_per_div,
@@ -655,7 +667,8 @@ static void UART_SendScopeStatus(void)
       (unsigned long)sample_rate_hz,
       (unsigned long)overrun_count,
       (unsigned long)config.refresh_ms,
-      (UartStreamEnabled != 0U) ? "ON" : "OFF");
+      (UartStreamEnabled != 0U) ? "ON" : "OFF",
+      (ScopeConfigDirty != 0U) ? "DIRTY" : "SAVED");
   UART_SendText(status);
 }
 
@@ -673,16 +686,10 @@ static uint8_t UART_SaveScopeConfig(void)
                                UartStreamEnabled);
 }
 
-static void UART_AcknowledgeAndSave(const char *ok_message)
+static void UART_Acknowledge(const char *ok_message)
 {
-  if (UART_SaveScopeConfig() != 0U)
-  {
-    UART_SendText(ok_message);
-  }
-  else
-  {
-    UART_SendText("#WARN applied; FLASH save failed\r\n");
-  }
+  ScopeConfigDirty = 1U;
+  UART_SendText(ok_message);
   UART_SendScopeStatus();
 }
 
