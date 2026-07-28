@@ -66,7 +66,8 @@ RAM (xrw)      : ORIGIN = 0x24000000, LENGTH = 512K
 RAM_D2 (xrw)      : ORIGIN = 0x30000000, LENGTH = 288K
 RAM_D3 (xrw)      : ORIGIN = 0x38000000, LENGTH = 64K
 ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
+/* Bank 2 sector 7 (0x081E0000..0x081FFFFF) stores scope settings. */
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 1920K
 }
 
 /* Define output sections */
@@ -184,6 +185,18 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
   } >DTCMRAM
+
+  /*
+   * Large oscilloscope history and LCD frame buffers live in AXI SRAM.
+   * They are explicitly initialized by the application.
+   */
+  .scope_ram (NOLOAD) :
+  {
+    . = ALIGN(32);
+    *(.scope_ram)
+    *(.scope_ram*)
+    . = ALIGN(32);
+  } >RAM
 
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :

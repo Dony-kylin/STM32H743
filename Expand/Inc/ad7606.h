@@ -66,11 +66,27 @@ uint8_t AD7606_IsBusy(void);
 /** @brief 触发 PA8 上并联的 CONVST_A/B，启动 8 通道转换 */
 AD7606_Status AD7606_StartConversion(void);
 
+/**
+ * @brief Use TIM1_CH1 on PA8 to generate a fixed-rate CONVST signal.
+ * @note  The maximum supported rate for the AD7606 is 200 kSPS.
+ */
+AD7606_Status AD7606_StartContinuous(uint32_t sample_rate_hz);
+void AD7606_StopContinuous(void);
+uint32_t AD7606_GetConfiguredSampleRateHz(void);
+uint32_t AD7606_GetOverrunCount(void);
+
 /** @brief 通过FMC并行读取8通道数据 */
 AD7606_Status AD7606_ReadChannels(int16_t *buf);
 
 /** @brief BUSY下降沿中断回调 (释放信号量) */
 void AD7606_ConvCompleteCallback(void);
+
+/**
+ * @brief Called from the BUSY EXTI interrupt after all eight channels
+ *        have been read in continuous mode.
+ * @note  This callback runs in interrupt context and must remain short.
+ */
+void AD7606_FrameReadyCallback(const int16_t *channels);
 
 #ifdef __cplusplus
 }

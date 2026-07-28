@@ -78,6 +78,8 @@ Core/Src/sysmem.c \
 Core/Src/syscalls.c \
 Core/Src/freertos.c \
 Expand/Src/ad7606.c \
+Expand/Src/ad7606_scope.c \
+Expand/Src/ad7606_scope_store.c \
 Expand/Src/lcd_spi_154.c \
 Expand/Src/lcd_fonts.c \
 Expand/Src/lcd_image.c \

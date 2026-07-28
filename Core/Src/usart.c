@@ -66,6 +66,14 @@ void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
+  /*
+   * Keep short scope commands buffered while the UART task is transmitting
+   * CSV telemetry. Polling RX with FIFO enabled avoids losing pasted commands.
+   */
+  if (HAL_UARTEx_EnableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   /* USER CODE END USART1_Init 2 */
 
