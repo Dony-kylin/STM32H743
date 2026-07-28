@@ -770,3 +770,4 @@ static uint32_t AD7606_FormatVoltageFrame(char *buffer, uint32_t size,
 }
 
 /* USER CODE END Application */
+
