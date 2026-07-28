@@ -265,39 +265,6 @@ void StartTask_DataProcess(void *argument)
   /* USER CODE END StartTask_DataProcess */
 }
 
-void AD7606_FrameReadyCallback(const int16_t *channels)
-{
-  static uint32_t uart_decimation_count;
-  AD7606_Frame frame;
-
-  AD7606_ScopePushFrame(channels);
-
-  for (uint32_t i = 0U; i < AD7606_NUM_CHANNELS; ++i)
-  {
-    AdcLatestFrame.channels[i] = channels[i];
-  }
-  ++AdcFrameCount;
-
-  ++uart_decimation_count;
-  if (uart_decimation_count >= AD7606_UART_DECIMATION)
-  {
-    uint32_t timestamp = HAL_GetTick();
-
-    uart_decimation_count = 0U;
-    for (uint32_t i = 0U; i < AD7606_NUM_CHANNELS; ++i)
-    {
-      frame.channels[i] = channels[i];
-    }
-    frame.timestamp = timestamp;
-    AdcLatestFrame.timestamp = timestamp;
-
-    if (osMessageQueuePut(AdcFrameQueueHandle, &frame, 0U, 0U) != osOK)
-    {
-      ++AdcTelemetryDropCount;
-    }
-  }
-}
-
 /* USER CODE BEGIN Header_StartTask_Lcd */
 /**
 * @brief Function implementing the Task_Lcd thread.
@@ -763,3 +730,4 @@ static uint32_t AD7606_FormatVoltageFrame(char *buffer, uint32_t size,
 }
 
 /* USER CODE END Application */
+

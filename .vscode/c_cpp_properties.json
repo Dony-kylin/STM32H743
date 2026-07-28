@@ -4,30 +4,20 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/Expand/**",
-                "${workspaceFolder}/Expand/UI",
-                "${workspaceFolder}/Expand/UI/page",
-                "${workspaceFolder}/Expand/smui",
-                "${workspaceFolder}/Expand/APP",
-                "${workspaceFolder}/Expand/KEY",
-                "${workspaceFolder}/Expand/LCD",
-                "${workspaceFolder}/Drivers/CMSIS/DSP/Include",
                 "${workspaceFolder}/Core/Inc",
-                "${workspaceFolder}/BSP/Inc",
-                "${workspaceFolder}/Drivers/STM32U5xx_HAL_Driver/Inc",
-                "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32U5xx/Include",
-                "${workspaceFolder}/FileX/App",
-                "${workspaceFolder}/FileX/Target"
-                
+                "${workspaceFolder}/Drivers/STM32H7xx_HAL_Driver/Inc",
+                "${workspaceFolder}/Drivers/STM32H7xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include",
+                "${workspaceFolder}/Drivers/CMSIS/Include"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE",
                 "USE_HAL_DRIVER",
-                "STM32H750xx"
+                "STM32H743xx"
             ],
-            "compilerPath": "D:/10 2021.10/bin/arm-none-eabi-gcc",
+            "compilerPath": "D:/gcc-arm-none-eabi/bin/arm-none-eabi-gcc",
             "cStandard": "c17",
             "cppStandard": "c++11",
             "intelliSenseMode": "windows-gcc-arm",
