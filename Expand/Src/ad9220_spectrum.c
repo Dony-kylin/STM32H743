@@ -9,7 +9,6 @@
 #define AD9220_SPECTRUM_FULL_SCALE_UV        2500000.0f
 #define AD9220_SPECTRUM_BAD_LIMIT_RAW        32113
 #define AD9220_SPECTRUM_MIN_FUNDAMENTAL_HZ    1000U
-#define AD9220_SPECTRUM_MAX_FUNDAMENTAL_HZ   500000U
 #define AD9220_SPECTRUM_MIN_SIGNAL_UV            1000U
 #define AD9220_SPECTRUM_RAM \
   __attribute__((section(".scope_ram"), aligned(32)))
@@ -198,8 +197,7 @@ uint8_t AD9220_SpectrumAnalyze(const int16_t *samples, uint32_t count,
          AD9220_SPECTRUM_FFT_SIZE) + sample_rate_hz - 1U) /
        sample_rate_hz);
   maximum_bin = (uint32_t)
-      (((uint64_t)AD9220_SPECTRUM_MAX_FUNDAMENTAL_HZ *
-        AD9220_SPECTRUM_FFT_SIZE) / sample_rate_hz);
+      ((AD9220_SPECTRUM_FFT_SIZE / 2U) - 1U);
   if (minimum_bin < 1U)
   {
     minimum_bin = 1U;
