@@ -16,7 +16,9 @@
 #define AD9220_NO_READY_BUFFER             0xFFU
 #define AD9220_EDGE_SPIN_LIMIT           100000U
 #define AD9220_TIM4_PRESCALER                 0U
-#define AD9220_TIM4_PERIOD                  119U
+#define AD9220_TIM4_KERNEL_CLOCK_HZ    240000000U
+#define AD9220_TIM4_PERIOD \
+  ((AD9220_TIM4_KERNEL_CLOCK_HZ / AD9220_SAMPLE_RATE_HZ) - 1U)
 #define AD9220_DMA_IRQ_PRIORITY                6U
 #define AD9220_CAPTURE_ERROR_DMA          0x80000000U
 #define AD9220_CAPTURE_ERROR_CLOCK        0x40000000U
@@ -28,7 +30,7 @@
 /*
  * DMA1 cannot access DTCM. Each raw buffer therefore lives in D2 SRAM and
  * starts on its own cache-line boundary. TIM4 update requests make both DMA
- * streams read GPIOE/GPIOD at the same 2 MHz instant. While DMA fills one
+ * streams read GPIOE/GPIOD at the configured sample rate. While DMA fills one
  * buffer, the CPU converts the other one.
  */
 static uint32_t ad9220_port_e_buffer0[AD9220_CAPTURE_TRANSFER_COUNT]
@@ -73,6 +75,7 @@ static HAL_StatusTypeDef AD9220_DMA_Init(void);
 static HAL_StatusTypeDef AD9220_DMA_Start(void);
 static HAL_StatusTypeDef AD9220_WaitForFallingClockEdge(void);
 static void AD9220_DMA_Stop(void);
+static void AD9220_Timer_ResumeIfPaused(void);
 static void AD9220_DMA_BufferComplete(uint8_t buffer_index,
                                       uint8_t port_mask);
 static void AD9220_DMA_Error(DMA_HandleTypeDef *hdma);
@@ -191,6 +194,7 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
   {
     __enable_irq();
   }
+  AD9220_Timer_ResumeIfPaused();
   return AD9220_STATUS_OK;
 }
 
@@ -630,8 +634,8 @@ static HAL_StatusTypeDef AD9220_DMA_Start(void)
   }
 
   /*
-   * Align the first TIM4 period to an AD9220 falling edge. TIM4 then creates
-   * one DMA request every 500 ns. The bounded wait keeps a missing TCXO from
+   * Align the first TIM4 period to an AD9220 falling edge. At 8 MSPS TIM4
+   * creates one DMA request every 125 ns. The bounded wait keeps a missing TCXO from
    * hanging the firmware.
    */
   if (AD9220_WaitForFallingClockEdge() != HAL_OK)
@@ -754,6 +758,14 @@ static void AD9220_DMA_BufferComplete(uint8_t buffer_index,
   ad9220_done_mask = AD9220_CAPTURE_DONE_BUS;
   ad9220_capture_complete = 1U;
   ad9220_capture_busy = 0U;
+
+  /*
+   * Freeze the completed block before waking the task. At 8 MSPS a block is
+   * only 2.048 ms long; stopping the request source prevents the CPU copy
+   * from racing the DMA as it switches back to the completed buffer.
+   */
+  __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
+  __HAL_TIM_DISABLE(&ad9220_sample_timer);
   __DMB();
   AD9220_CaptureCompleteCallback();
 }
@@ -783,6 +795,18 @@ static void AD9220_DMA_Error(DMA_HandleTypeDef *hdma)
     ad9220_capture_busy = 0U;
     ad9220_capture_complete = 0U;
     AD9220_CaptureCompleteCallback();
+  }
+}
+
+static void AD9220_Timer_ResumeIfPaused(void)
+{
+  if ((ad9220_sample_timer.Instance == TIM4) &&
+      ((TIM4->CR1 & TIM_CR1_CEN) == 0U))
+  {
+    __HAL_TIM_SET_COUNTER(&ad9220_sample_timer, 0U);
+    __HAL_TIM_CLEAR_FLAG(&ad9220_sample_timer, TIM_FLAG_UPDATE);
+    __HAL_TIM_ENABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
+    __HAL_TIM_ENABLE(&ad9220_sample_timer);
   }
 }
 

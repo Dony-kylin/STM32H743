@@ -10,8 +10,8 @@ extern "C" {
 #include <stdint.h>
 
 #define AD9220_ADC_CLOCK_HZ            8000000U
-#define AD9220_SAMPLE_RATE_HZ          2000000U
-#define AD9220_CLOCKS_PER_SAMPLE       4U
+#define AD9220_SAMPLE_RATE_HZ          8000000U
+#define AD9220_CLOCKS_PER_SAMPLE       1U
 #define AD9220_CAPTURE_SAMPLES         16384U
 /*
  * The ADC is clocked continuously before acquisition starts, so its pipeline
@@ -36,7 +36,7 @@ typedef enum
  *   D12/OTR PD14   CLK PD15 (direct GPIO input)
  *   The external TCXO drives only AD9220 CLK and PD15.
  *
- * TIM4 generates a 2 MHz update request. Two DMA1 streams read GPIOE/GPIOD
+ * TIM4 generates an 8 MHz update request. Two DMA1 streams read GPIOE/GPIOD
  * into double buffers in D2 SRAM, so the CPU processes one complete block
  * while DMA fills the other one. DMA interrupts occur once per block, not
  * once per sample.

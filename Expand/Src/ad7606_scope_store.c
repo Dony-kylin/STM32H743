@@ -86,8 +86,8 @@ uint8_t AD7606_ScopeStoreLoad(AD7606_ScopeConfig *config,
   config->time_per_div_us = latest->time_per_div_us;
   config->refresh_ms = latest->refresh_ms;
   /*
-   * Keep the saved display configuration when upgrading from the former
-   * 2 MSPS firmware, but always report the fixed rate of the running driver.
+   * Keep the saved display configuration when upgrading from former sample
+   * rates, but always report the fixed rate of the running driver.
    * Flash is not rewritten until the user explicitly sends SAVE.
    */
   *sample_rate_hz = AD9220_SAMPLE_RATE_HZ;

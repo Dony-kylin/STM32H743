@@ -1,7 +1,5 @@
 #include "ad7606_scope.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
 #include "lcd_spi_154.h"
 #include "stm32h7xx_hal.h"
 
@@ -178,7 +176,6 @@ void AD7606_ScopeGetConfig(AD7606_ScopeConfig *config)
     return;
   }
 
-  taskENTER_CRITICAL();
   config->channel = (uint8_t)(scope_channel_index + 1U);
   config->running = scope_running;
   config->center_auto = scope_center_auto;
@@ -188,7 +185,6 @@ void AD7606_ScopeGetConfig(AD7606_ScopeConfig *config)
   config->center_mv = scope_center_mv;
   config->time_per_div_us = scope_time_per_div_us;
   config->refresh_ms = scope_refresh_ms;
-  taskEXIT_CRITICAL();
 }
 
 uint8_t AD7606_ScopeSetChannel(uint32_t channel)
@@ -198,11 +194,9 @@ uint8_t AD7606_ScopeSetChannel(uint32_t channel)
     return 0U;
   }
 
-  taskENTER_CRITICAL();
   scope_channel_index = channel - 1U;
   scope_write_count = 0U;
   scope_decimation_count = 0U;
-  taskEXIT_CRITICAL();
   return 1U;
 }
 
@@ -228,11 +222,9 @@ uint8_t AD7606_ScopeSetDecimation(uint32_t decimation)
     return 0U;
   }
 
-  taskENTER_CRITICAL();
   scope_decimation = decimation;
   scope_write_count = 0U;
   scope_decimation_count = 0U;
-  taskEXIT_CRITICAL();
   return 1U;
 }
 
@@ -244,18 +236,14 @@ uint8_t AD7606_ScopeSetCenterMv(int32_t center_mv)
     return 0U;
   }
 
-  taskENTER_CRITICAL();
   scope_center_mv = center_mv;
   scope_center_auto = 0U;
-  taskEXIT_CRITICAL();
   return 1U;
 }
 
 void AD7606_ScopeSetCenterAuto(uint8_t automatic)
 {
-  taskENTER_CRITICAL();
   scope_center_auto = (automatic != 0U) ? 1U : 0U;
-  taskEXIT_CRITICAL();
 }
 
 uint8_t AD7606_ScopeSetTimePerDivUs(uint32_t time_per_div_us)
@@ -283,14 +271,12 @@ uint8_t AD7606_ScopeSetRefreshMs(uint32_t refresh_ms)
 
 void AD7606_ScopeSetRunning(uint8_t running)
 {
-  taskENTER_CRITICAL();
   if ((running != 0U) && (scope_running == 0U))
   {
     scope_write_count = 0U;
     scope_decimation_count = 0U;
   }
   scope_running = (running != 0U) ? 1U : 0U;
-  taskEXIT_CRITICAL();
 }
 
 uint32_t AD7606_ScopeGetRefreshMs(void)
@@ -311,9 +297,7 @@ uint8_t AD7606_ScopeGetMeasurements(
     return 0U;
   }
 
-  taskENTER_CRITICAL();
   *measurements = scope_measurements;
-  taskEXIT_CRITICAL();
   return measurements->valid;
 }
 
@@ -369,12 +353,10 @@ uint8_t AD7606_ScopeAutoConfigure(void)
    * Keep the user's decimation setting. Automatic timebase selection is
    * handled by the LCD renderer and does not alter the 8 MHz ADC clock.
    */
-  taskENTER_CRITICAL();
   scope_mv_per_div = selected_vdiv;
   scope_center_mv = ScopeRawToMv(midpoint);
   scope_center_auto = 1U;
   scope_time_per_div_us = 0U;
-  taskEXIT_CRITICAL();
   return 1U;
 }
 
@@ -571,9 +553,7 @@ static void ScopeAnalyzeMeasurements(const int16_t *samples, uint32_t count,
     measurements.sample_rate_hz = input_sample_rate_hz;
     measurements.valid = 1U;
 
-    taskENTER_CRITICAL();
     scope_measurements = measurements;
-    taskEXIT_CRITICAL();
   }
 }
 
@@ -924,7 +904,6 @@ static void ScopeAnalyzeAndRender(uint32_t count,
     uint32_t amplitude_mv = (peak_to_peak_mv + 1U) / 2U;
     uint32_t rms_mv = (uint32_t)ScopeRawToMv((int32_t)rms_raw);
 
-    taskENTER_CRITICAL();
     scope_measurements.voltage_mv = newest_mv;
     scope_measurements.dc_mv = dc_mv;
     scope_measurements.amplitude_mv = amplitude_mv;
@@ -933,7 +912,6 @@ static void ScopeAnalyzeAndRender(uint32_t count,
     scope_measurements.frequency_millihz = frequency_millihz;
     scope_measurements.sample_rate_hz = input_sample_rate_hz;
     scope_measurements.valid = 1U;
-    taskEXIT_CRITICAL();
   }
 
   {
