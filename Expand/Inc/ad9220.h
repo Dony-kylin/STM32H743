@@ -13,7 +13,11 @@ extern "C" {
 #define AD9220_SAMPLE_RATE_HZ          2000000U
 #define AD9220_CLOCKS_PER_SAMPLE       4U
 #define AD9220_CAPTURE_SAMPLES         16384U
-#define AD9220_PIPELINE_DELAY          3U
+/*
+ * The ADC is clocked continuously before acquisition starts, so its pipeline
+ * contains valid data already; no samples need to be discarded per DMA block.
+ */
+#define AD9220_PIPELINE_DELAY          0U
 #define AD9220_MAX_CAPTURE_SAMPLES     AD9220_CAPTURE_SAMPLES
 
 typedef enum
@@ -32,9 +36,10 @@ typedef enum
  *   D12/OTR PD14   CLK PD15 (direct GPIO input)
  *   The external TCXO drives only AD9220 CLK and PD15.
  *
- * The first point is synchronized to the external 8 MHz clock. A DWT-paced
- * polling loop then reads GPIOE/GPIOD every 240 CPU cycles, giving a precise
- * 2 MHz sample rate. Each port pair is checked twice for consistency.
+ * TIM4 generates a 2 MHz update request. Two DMA1 streams read GPIOE/GPIOD
+ * into double buffers in D2 SRAM, so the CPU processes one complete block
+ * while DMA fills the other one. DMA interrupts occur once per block, not
+ * once per sample.
  */
 void AD9220_Init(void);
 void AD9220_DeInit(void);
@@ -67,7 +72,7 @@ uint32_t AD9220_CopySignedSamples(int16_t *destination,
 void AD9220_DMA_PortE_IRQHandler(void);
 void AD9220_DMA_PortD_IRQHandler(void);
 
-/* Called after a capture completes or an edge-wait error is detected. */
+/* Called from the DMA ISR after both GPIO port buffers are complete. */
 void AD9220_CaptureCompleteCallback(void);
 
 #ifdef __cplusplus

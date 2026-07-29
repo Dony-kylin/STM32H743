@@ -257,9 +257,23 @@ void StartTask_DataProcess(void *argument)
     if (osSemaphoreAcquire(AdcSemaphoreHandle,
                            AD9220_CAPTURE_TIMEOUT_TICKS) != osOK)
     {
+      uint32_t capture_progress = AD9220_GetLastProgress();
+      uint32_t dma_done_mask = AD9220_GetDmaDoneMask();
+
       ++AdcTimeoutCount;
-      AdcDmaDoneMask = AD9220_GetDmaDoneMask();
+      AdcDmaDoneMask = dma_done_mask;
       AD9220_AbortCapture();
+
+      /*
+       * A healthy block completes in about 8.2 ms. If no DMA callback or
+       * progress was observed during the timeout, restart the complete
+       * TIM4/DMAMUX/DMA chain instead of repeatedly waiting on a dead engine.
+       */
+      if ((capture_progress == 0U) && (dma_done_mask == 0U))
+      {
+        ++AdcReadErrorCount;
+        AD9220_PrepareAcquisition();
+      }
       continue;
     }
 
@@ -279,7 +293,18 @@ void StartTask_DataProcess(void *argument)
                             AD9220_GetSampleRateHz());
 
     frame.sample = AdcCaptureSamples[copied - 1U];
-    frame.raw = AD9220_GetRawSample(copied - 1U);
+    {
+      int32_t raw = ((int32_t)frame.sample / 16L) + 2048L;
+      if (raw < 0L)
+      {
+        raw = 0L;
+      }
+      else if (raw > 4095L)
+      {
+        raw = 4095L;
+      }
+      frame.raw = (uint16_t)raw;
+    }
     frame.overrange =
         (AD9220_GetOverrangeCount() != 0U) ? 1U : 0U;
     frame.reserved[0] = 0U;
@@ -379,7 +404,7 @@ void StartTask_Uart(void *argument)
   /* 等待 UART 外设和终端就绪 */
   osDelay(20U);
 
-  UART_SendText("#READY MODE=POLL_2M RATE=2000000Hz\r\n");
+  UART_SendText("#READY MODE=TIM_DMA_DB RATE=2000000Hz\r\n");
   AdcAcquisitionEnabled = 1U;
 
   for(;;)
@@ -764,7 +789,7 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendUnsigned(offset, glitch_correction_count);
   offset = UART_StatusAppendText(offset, " CAP_ERR=");
   offset = UART_StatusAppendUnsigned(offset, AdcReadErrorCount);
-  offset = UART_StatusAppendText(offset, " MODE=POLL_2M DRV_ERR=");
+  offset = UART_StatusAppendText(offset, " MODE=TIM_DMA_DB DRV_ERR=");
   offset = UART_StatusAppendUnsigned(offset, dma_error_count);
   offset = UART_StatusAppendText(offset, " DONE=");
   offset = UART_StatusAppendUnsigned(offset, dma_done_mask);

@@ -199,15 +199,15 @@ SECTIONS
   } >RAM
 
   /*
-   * The high-rate GPIO polling loop stores port snapshots in CPU-local DTCM.
+   * DMA1 cannot access DTCM. AD9220 GPIO double buffers live in D2 SRAM.
    */
-  .ad9220_capture_ram (NOLOAD) :
+  .ad9220_dma_ram (NOLOAD) :
   {
     . = ALIGN(32);
-    *(.ad9220_capture_ram)
-    *(.ad9220_capture_ram*)
+    *(.ad9220_dma_ram)
+    *(.ad9220_dma_ram*)
     . = ALIGN(32);
-  } >DTCMRAM
+  } >RAM_D2
 
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
