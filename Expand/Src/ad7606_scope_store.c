@@ -1,4 +1,5 @@
 #include "ad7606_scope_store.h"
+#include "ad9220.h"
 
 #include "stm32h7xx_hal.h"
 
@@ -12,10 +13,11 @@
 #define SCOPE_STORE_FLASH_START       0x081E0000UL
 #define SCOPE_STORE_FLASH_SIZE        0x00020000UL
 #define SCOPE_STORE_RECORD_MAGIC      0x53434F50UL
-#define SCOPE_STORE_RECORD_VERSION    1UL
+#define SCOPE_STORE_RECORD_VERSION    3UL
 #define SCOPE_STORE_RECORD_SIZE       64U
 #define SCOPE_STORE_RECORD_COUNT      \
   (SCOPE_STORE_FLASH_SIZE / SCOPE_STORE_RECORD_SIZE)
+#define SCOPE_STORE_LEGACY_RATE_HZ    2000000U
 
 typedef struct
 {
@@ -83,7 +85,12 @@ uint8_t AD7606_ScopeStoreLoad(AD7606_ScopeConfig *config,
   config->center_mv = latest->center_mv;
   config->time_per_div_us = latest->time_per_div_us;
   config->refresh_ms = latest->refresh_ms;
-  *sample_rate_hz = latest->sample_rate_hz;
+  /*
+   * Keep the saved display configuration when upgrading from the former
+   * 2 MSPS firmware, but always report the fixed rate of the running driver.
+   * Flash is not rewritten until the user explicitly sends SAVE.
+   */
+  *sample_rate_hz = AD9220_SAMPLE_RATE_HZ;
   *stream_enabled = latest->stream_enabled;
   return 1U;
 }
@@ -285,18 +292,18 @@ static uint8_t ScopeStoreConfigValuesAreValid(
                (config->decimation == 4U) ||
                (config->decimation == 8U) ||
                (config->decimation == 16U) ||
-               (config->decimation == 32U) ||
-               (config->decimation == 64U)) ? 1U : 0U;
+               (config->decimation == 32U)) ? 1U : 0U;
 
-  if ((config->channel < 1U) || (config->channel > 8U) ||
+  if ((config->channel != 1U) ||
       (config->running > 1U) || (config->center_auto > 1U) ||
-      (config->center_mv < -5000) || (config->center_mv > 5000) ||
+      (config->center_mv < -2500) || (config->center_mv > 2500) ||
       (mv_valid == 0U) || (dec_valid == 0U) ||
       ((config->time_per_div_us != 0U) &&
        ((config->time_per_div_us < 10U) ||
         (config->time_per_div_us > 1000000U))) ||
-      (config->refresh_ms < 50U) || (config->refresh_ms > 2000U) ||
-      (sample_rate_hz < 5000U) || (sample_rate_hz > 200000U) ||
+      (config->refresh_ms < 250U) || (config->refresh_ms > 2000U) ||
+      ((sample_rate_hz != AD9220_SAMPLE_RATE_HZ) &&
+       (sample_rate_hz != SCOPE_STORE_LEGACY_RATE_HZ)) ||
       (stream_enabled > 1U))
   {
     return 0U;

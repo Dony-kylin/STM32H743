@@ -9,7 +9,7 @@
 #include <string.h>
 
 /*
- * The acquisition task runs continuously at the AD7606 conversion rate.
+ * The acquisition task submits blocks captured from the AD9220.
  * A 4096-sample ring gives the LCD task enough history to find a clean
  * rising-edge trigger without slowing the converter down.
  */
@@ -19,14 +19,14 @@
 #define SCOPE_SNAPSHOT_RETRIES        3U
 
 #define SCOPE_GRAPH_X                 8U
-#define SCOPE_GRAPH_Y                 44U
+#define SCOPE_GRAPH_Y                 34U
 #define SCOPE_GRAPH_WIDTH             224U
-#define SCOPE_GRAPH_HEIGHT            192U
+#define SCOPE_GRAPH_HEIGHT            128U
 #define SCOPE_BLIT_ROWS               16U
 #define SCOPE_HORIZONTAL_DIVS         8U
 #define SCOPE_VERTICAL_DIVS           8U
-#define SCOPE_DEFAULT_MV_PER_DIV      200U
-#define SCOPE_DEFAULT_REFRESH_MS      100U
+#define SCOPE_DEFAULT_MV_PER_DIV      100U
+#define SCOPE_DEFAULT_REFRESH_MS      500U
 
 #define SCOPE_COLOR_BLACK             0x0000U
 #define SCOPE_COLOR_GRID              0x2125U
@@ -55,8 +55,12 @@ static volatile uint32_t scope_refresh_ms;
 static volatile uint32_t scope_input_sample_rate_hz;
 static volatile uint8_t scope_running;
 static volatile uint8_t scope_center_auto;
+static uint64_t scope_virtual_cycles_q32;
+static AD7606_ScopeMeasurements scope_measurements;
 
 static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles);
+static void ScopeAnalyzeMeasurements(const int16_t *samples, uint32_t count,
+                                     uint32_t input_sample_rate_hz);
 static void ScopeAnalyzeAndRender(uint32_t count,
                                   const AD7606_ScopeConfig *config);
 static uint32_t ScopeIntegerSqrt(uint64_t value);
@@ -73,7 +77,7 @@ static void ScopeBlitGraph(void);
 
 void AD7606_ScopeInit(uint32_t full_scale_mv)
 {
-  scope_full_scale_mv = (full_scale_mv == 10000U) ? 10000U : 5000U;
+  scope_full_scale_mv = (full_scale_mv != 0U) ? full_scale_mv : 2500U;
   scope_write_count = 0U;
   scope_decimation_count = 0U;
   scope_channel_index = 0U;
@@ -84,7 +88,9 @@ void AD7606_ScopeInit(uint32_t full_scale_mv)
   scope_refresh_ms = SCOPE_DEFAULT_REFRESH_MS;
   scope_input_sample_rate_hz = 0U;
   scope_running = 1U;
-  scope_center_auto = 0U;
+  scope_center_auto = 1U;
+  scope_virtual_cycles_q32 = 0U;
+  memset(&scope_measurements, 0, sizeof(scope_measurements));
 
   /* CYCCNT provides sub-microsecond timestamps without consuming a timer. */
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -122,6 +128,49 @@ void AD7606_ScopePushFrame(const int16_t *channels)
   scope_write_count = write_count + 1U;
 }
 
+void AD7606_ScopePushSamples(const int16_t *samples, uint32_t count,
+                             uint32_t input_sample_rate_hz)
+{
+  uint64_t cycles_per_sample_q32;
+  uint32_t decimation;
+  uint32_t decimation_count;
+  uint32_t write_count;
+
+  if ((samples == NULL) || (count == 0U) ||
+      (input_sample_rate_hz == 0U) || (scope_running == 0U))
+  {
+    return;
+  }
+
+  cycles_per_sample_q32 =
+      ((uint64_t)SystemCoreClock << 32U) / input_sample_rate_hz;
+  decimation = scope_decimation;
+  decimation_count = scope_decimation_count;
+  write_count = scope_write_count;
+
+  for (uint32_t i = 0U; i < count; ++i)
+  {
+    scope_virtual_cycles_q32 += cycles_per_sample_q32;
+    ++decimation_count;
+    if (decimation_count >= decimation)
+    {
+      uint32_t index = write_count & SCOPE_RING_MASK;
+
+      decimation_count = 0U;
+      scope_ring_samples[index] = samples[i];
+      scope_ring_cycles[index] =
+          (uint32_t)(scope_virtual_cycles_q32 >> 32U);
+      __DMB();
+      ++write_count;
+      scope_write_count = write_count;
+    }
+  }
+
+  scope_decimation_count = decimation_count;
+  scope_input_sample_rate_hz = input_sample_rate_hz;
+  ScopeAnalyzeMeasurements(samples, count, input_sample_rate_hz);
+}
+
 void AD7606_ScopeGetConfig(AD7606_ScopeConfig *config)
 {
   if (config == NULL)
@@ -144,7 +193,7 @@ void AD7606_ScopeGetConfig(AD7606_ScopeConfig *config)
 
 uint8_t AD7606_ScopeSetChannel(uint32_t channel)
 {
-  if ((channel < 1U) || (channel > 8U))
+  if (channel != 1U)
   {
     return 0U;
   }
@@ -174,8 +223,7 @@ uint8_t AD7606_ScopeSetDecimation(uint32_t decimation)
 {
   if ((decimation != 1U) && (decimation != 2U) &&
       (decimation != 4U) && (decimation != 8U) &&
-      (decimation != 16U) && (decimation != 32U) &&
-      (decimation != 64U))
+      (decimation != 16U) && (decimation != 32U))
   {
     return 0U;
   }
@@ -224,7 +272,7 @@ uint8_t AD7606_ScopeSetTimePerDivUs(uint32_t time_per_div_us)
 
 uint8_t AD7606_ScopeSetRefreshMs(uint32_t refresh_ms)
 {
-  if ((refresh_ms < 50U) || (refresh_ms > 2000U))
+  if ((refresh_ms < 250U) || (refresh_ms > 2000U))
   {
     return 0U;
   }
@@ -253,6 +301,20 @@ uint32_t AD7606_ScopeGetRefreshMs(void)
 uint32_t AD7606_ScopeGetInputSampleRateHz(void)
 {
   return scope_input_sample_rate_hz;
+}
+
+uint8_t AD7606_ScopeGetMeasurements(
+    AD7606_ScopeMeasurements *measurements)
+{
+  if (measurements == NULL)
+  {
+    return 0U;
+  }
+
+  taskENTER_CRITICAL();
+  *measurements = scope_measurements;
+  taskEXIT_CRITICAL();
+  return measurements->valid;
 }
 
 uint8_t AD7606_ScopeAutoConfigure(void)
@@ -304,10 +366,8 @@ uint8_t AD7606_ScopeAutoConfigure(void)
   }
 
   /*
-   * DEC controls work performed by the 200 kSPS BUSY interrupt. Keep the
-   * user's current value here: changing it from AUTO can abruptly multiply
-   * ISR load and starve the scheduler before the command can reply or save.
-   * Automatic timebase selection is handled by the LCD renderer.
+   * Keep the user's decimation setting. Automatic timebase selection is
+   * handled by the LCD renderer and does not alter the 8 MHz ADC clock.
    */
   taskENTER_CRITICAL();
   scope_mv_per_div = selected_vdiv;
@@ -325,12 +385,9 @@ void AD7606_ScopeDisplayInit(void)
   LCD_SetColor(LCD_WHITE);
   LCD_SetAsciiFont(&ASCII_Font12);
   LCD_ShowNumMode(Fill_Space);
-  LCD_Clear();
 
-  ScopeDisplayText(2U, "CH1  200mV/div  Fs:---");
-  ScopeDisplayText(16U, "Max:---mV Min:---mV");
-  ScopeDisplayText(30U, "Mid:---mV Vpp:---mV RMS:---mV");
-  ScopeDisplayText(238U, "F:---Hz DC:---mV C:+0mV");
+  ScopeDisplayText(2U, "V:---mV  A:---mV");
+  ScopeDisplayText(16U, "F:---Hz  100mV/div");
 
   ScopeClearGraph();
   ScopeDrawGrid();
@@ -360,9 +417,8 @@ void AD7606_ScopeDisplayRefresh(void)
 static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles)
 {
   /*
-   * Keep enough unused ring entries ahead of the snapshot so the 200 kSPS
-   * BUSY interrupt can continue writing while the LCD copies history. This
-   * avoids a long critical section that would otherwise hide BUSY edges.
+   * Keep enough unused ring entries ahead of the snapshot so the acquisition
+   * task can append the next DMA block while the LCD copies history.
    */
   for (uint32_t attempt = 0U; attempt < SCOPE_SNAPSHOT_RETRIES; ++attempt)
   {
@@ -390,6 +446,137 @@ static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles)
   return 0U;
 }
 
+static void ScopeAnalyzeMeasurements(const int16_t *samples, uint32_t count,
+                                     uint32_t input_sample_rate_hz)
+{
+  int16_t minimum;
+  int16_t maximum;
+  int64_t sum = 0;
+  uint64_t sum_squares = 0U;
+  int32_t mean;
+  int32_t hysteresis;
+  uint64_t variance;
+  uint32_t rms_raw;
+  uint64_t first_crossing_q16 = 0U;
+  uint64_t last_crossing_q16 = 0U;
+  uint32_t crossing_count = 0U;
+  uint32_t frequency_millihz = 0U;
+  uint8_t trigger_armed = 0U;
+
+  if ((samples == NULL) || (count < 3U) || (input_sample_rate_hz == 0U))
+  {
+    return;
+  }
+
+  minimum = samples[0];
+  maximum = samples[0];
+  for (uint32_t i = 0U; i < count; ++i)
+  {
+    int32_t value = samples[i];
+
+    if (value < minimum)
+    {
+      minimum = (int16_t)value;
+    }
+    if (value > maximum)
+    {
+      maximum = (int16_t)value;
+    }
+    sum += value;
+    sum_squares += (uint64_t)((int64_t)value * value);
+  }
+
+  mean = (int32_t)(sum / (int64_t)count);
+  {
+    int64_t mean_square = (int64_t)(sum_squares / count);
+    int64_t dc_square = (int64_t)mean * mean;
+    variance = (mean_square > dc_square) ?
+               (uint64_t)(mean_square - dc_square) : 0U;
+  }
+  rms_raw = ScopeIntegerSqrt(variance);
+
+  /*
+   * Use the whole 16384-point block instead of only the last six periods.
+   * At 500 kHz and 8 MSPS this averages about 1023 periods. Q16 linear
+   * interpolation removes the remaining one-sample crossing quantization.
+   */
+  hysteresis = ((int32_t)maximum - (int32_t)minimum) / 20;
+  if (hysteresis < 8)
+  {
+    hysteresis = 8;
+  }
+
+  for (uint32_t i = 1U; i < count; ++i)
+  {
+    int32_t previous = samples[i - 1U];
+    int32_t current = samples[i];
+
+    if (current <= (mean - hysteresis))
+    {
+      trigger_armed = 1U;
+    }
+    else if ((trigger_armed != 0U) &&
+             (current >= (mean + hysteresis)))
+    {
+      int32_t threshold = mean + hysteresis;
+      int32_t delta = current - previous;
+      uint32_t fraction_q16 = 0U;
+      uint64_t crossing_q16;
+
+      if ((delta > 0) && (previous < threshold))
+      {
+        int64_t numerator =
+            ((int64_t)threshold - previous) << 16U;
+        uint64_t fraction = (uint64_t)(numerator / delta);
+        fraction_q16 = (fraction < 65536U) ?
+                       (uint32_t)fraction : 65535U;
+      }
+
+      crossing_q16 =
+          ((uint64_t)(i - 1U) << 16U) + fraction_q16;
+      if (crossing_count == 0U)
+      {
+        first_crossing_q16 = crossing_q16;
+      }
+      last_crossing_q16 = crossing_q16;
+      ++crossing_count;
+      trigger_armed = 0U;
+    }
+  }
+
+  if ((crossing_count >= 2U) &&
+      (last_crossing_q16 > first_crossing_q16))
+  {
+    uint64_t periods = crossing_count - 1U;
+    uint64_t span_q16 = last_crossing_q16 - first_crossing_q16;
+    uint64_t numerator =
+        (uint64_t)input_sample_rate_hz * 1000U * periods;
+
+    frequency_millihz =
+        (uint32_t)((numerator << 16U) / span_q16);
+  }
+
+  {
+    uint32_t peak_to_peak_mv = (uint32_t)ScopeRawToMv(
+        (int32_t)maximum - (int32_t)minimum);
+    AD7606_ScopeMeasurements measurements;
+
+    measurements.voltage_mv =
+        ScopeRawToMv(samples[count - 1U]);
+    measurements.dc_mv = ScopeRawToMv(mean);
+    measurements.amplitude_mv = (peak_to_peak_mv + 1U) / 2U;
+    measurements.peak_to_peak_mv = peak_to_peak_mv;
+    measurements.rms_mv = (uint32_t)ScopeRawToMv((int32_t)rms_raw);
+    measurements.frequency_millihz = frequency_millihz;
+    measurements.sample_rate_hz = input_sample_rate_hz;
+    measurements.valid = 1U;
+
+    taskENTER_CRITICAL();
+    scope_measurements = measurements;
+    taskEXIT_CRITICAL();
+  }
+}
+
 static void ScopeAnalyzeAndRender(uint32_t count,
                                   const AD7606_ScopeConfig *config)
 {
@@ -398,7 +585,6 @@ static void ScopeAnalyzeAndRender(uint32_t count,
   int64_t sum = 0;
   uint64_t sum_squares = 0U;
   int32_t mean;
-  int32_t midpoint;
   int32_t display_center_mv;
   uint64_t variance;
   uint32_t rms_raw;
@@ -413,7 +599,6 @@ static void ScopeAnalyzeAndRender(uint32_t count,
   int32_t hysteresis;
   uint8_t trigger_armed = 0U;
   char line[64];
-  char timebase[16];
 
   for (uint32_t i = 0U; i < count; ++i)
   {
@@ -431,7 +616,6 @@ static void ScopeAnalyzeAndRender(uint32_t count,
   }
 
   mean = (int32_t)(sum / (int64_t)count);
-  midpoint = ((int32_t)maximum + (int32_t)minimum) / 2;
   display_center_mv = (config->center_auto != 0U) ?
                       ScopeRawToMv(mean) : config->center_mv;
   {
@@ -516,6 +700,27 @@ static void ScopeAnalyzeAndRender(uint32_t count,
   }
 
   {
+    int32_t newest_mv =
+        ScopeRawToMv(scope_snapshot_samples[count - 1U]);
+    int32_t dc_mv = ScopeRawToMv(mean);
+    uint32_t peak_to_peak_mv = (uint32_t)ScopeRawToMv(
+        (int32_t)maximum - (int32_t)minimum);
+    uint32_t amplitude_mv = (peak_to_peak_mv + 1U) / 2U;
+    uint32_t rms_mv = (uint32_t)ScopeRawToMv((int32_t)rms_raw);
+
+    taskENTER_CRITICAL();
+    scope_measurements.voltage_mv = newest_mv;
+    scope_measurements.dc_mv = dc_mv;
+    scope_measurements.amplitude_mv = amplitude_mv;
+    scope_measurements.peak_to_peak_mv = peak_to_peak_mv;
+    scope_measurements.rms_mv = rms_mv;
+    scope_measurements.frequency_millihz = frequency_millihz;
+    scope_measurements.sample_rate_hz = input_sample_rate_hz;
+    scope_measurements.valid = 1U;
+    taskEXIT_CRITICAL();
+  }
+
+  {
     uint64_t desired_span = 0U;
 
     if ((config->time_per_div_us != 0U) &&
@@ -587,79 +792,34 @@ static void ScopeAnalyzeAndRender(uint32_t count,
 
   ScopeBlitGraph();
 
-  if (config->time_per_div_us == 0U)
-  {
-    (void)snprintf(timebase, sizeof(timebase), "AUTO");
-  }
-  else if ((config->time_per_div_us >= 1000U) &&
-           ((config->time_per_div_us % 1000U) == 0U))
-  {
-    (void)snprintf(timebase, sizeof(timebase), "%lums/d",
-                   (unsigned long)(config->time_per_div_us / 1000U));
-  }
-  else
-  {
-    (void)snprintf(timebase, sizeof(timebase), "%luus/d",
-                   (unsigned long)config->time_per_div_us);
-  }
-
-  if (input_sample_rate_hz >= 1000U)
-  {
-    (void)snprintf(line, sizeof(line), "%sCH%u %umV/d %s Fs:%lu.%luk",
-                   (config->running != 0U) ? "" : "HOLD ",
-                   (unsigned int)config->channel,
-                   (unsigned int)config->mv_per_div, timebase,
-                   (unsigned long)(input_sample_rate_hz / 1000U),
-                   (unsigned long)((input_sample_rate_hz % 1000U) / 100U));
-  }
-  else
-  {
-    (void)snprintf(line, sizeof(line), "%sCH%u %umV/d %s Fs:%luHz",
-                   (config->running != 0U) ? "" : "HOLD ",
-                   (unsigned int)config->channel,
-                   (unsigned int)config->mv_per_div, timebase,
-                   (unsigned long)input_sample_rate_hz);
-  }
+  (void)snprintf(line, sizeof(line), "%sV:%+ldmV A:%lumV",
+                 (config->running != 0U) ? "" : "HOLD ",
+                 (long)ScopeRawToMv(
+                     scope_snapshot_samples[count - 1U]),
+                 (unsigned long)(((uint32_t)ScopeRawToMv(
+                     (int32_t)maximum - (int32_t)minimum) + 1U) / 2U));
   ScopeDisplayText(2U, line);
-
-  (void)snprintf(line, sizeof(line), "Max:%+ldmV Min:%+ldmV",
-                 (long)ScopeRawToMv(maximum),
-                 (long)ScopeRawToMv(minimum));
-  ScopeDisplayText(16U, line);
-
-  (void)snprintf(line, sizeof(line),
-                 "Mid:%+ldmV Vpp:%ldmV RMS:%ldmV",
-                 (long)ScopeRawToMv(midpoint),
-                 (long)ScopeRawToMv((int32_t)maximum - minimum),
-                 (long)ScopeRawToMv((int32_t)rms_raw));
-  ScopeDisplayText(30U, line);
 
   if (frequency_millihz >= 1000000U)
   {
-    (void)snprintf(line, sizeof(line), "F:%lu.%lukHz DC:%+ldmV C:%s%+ldmV",
+    (void)snprintf(line, sizeof(line), "F:%lu.%lukHz  %umV/div",
                    (unsigned long)(frequency_millihz / 1000000U),
                    (unsigned long)((frequency_millihz % 1000000U) / 100000U),
-                   (long)ScopeRawToMv(mean),
-                   (config->center_auto != 0U) ? "A" : "",
-                   (long)display_center_mv);
+                   (unsigned int)config->mv_per_div);
   }
   else if (frequency_millihz != 0U)
   {
-    (void)snprintf(line, sizeof(line), "F:%lu.%luHz DC:%+ldmV C:%s%+ldmV",
+    (void)snprintf(line, sizeof(line), "F:%lu.%luHz  %umV/div",
                    (unsigned long)(frequency_millihz / 1000U),
                    (unsigned long)((frequency_millihz % 1000U) / 100U),
-                   (long)ScopeRawToMv(mean),
-                   (config->center_auto != 0U) ? "A" : "",
-                   (long)display_center_mv);
+                   (unsigned int)config->mv_per_div);
   }
   else
   {
-    (void)snprintf(line, sizeof(line), "F:---Hz DC:%+ldmV C:%s%+ldmV",
-                   (long)ScopeRawToMv(mean),
-                   (config->center_auto != 0U) ? "A" : "",
-                   (long)display_center_mv);
+    (void)snprintf(line, sizeof(line), "F:---Hz  %umV/div",
+                   (unsigned int)config->mv_per_div);
   }
-  ScopeDisplayText(238U, line);
+  ScopeDisplayText(16U, line);
 }
 
 static uint32_t ScopeIntegerSqrt(uint64_t value)

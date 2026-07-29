@@ -198,6 +198,17 @@ SECTIONS
     . = ALIGN(32);
   } >RAM
 
+  /*
+   * The high-rate GPIO polling loop stores port snapshots in CPU-local DTCM.
+   */
+  .ad9220_capture_ram (NOLOAD) :
+  {
+    . = ALIGN(32);
+    *(.ad9220_capture_ram)
+    *(.ad9220_capture_ram*)
+    . = ALIGN(32);
+  } >DTCMRAM
+
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
   {

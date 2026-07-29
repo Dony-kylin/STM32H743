@@ -92,6 +92,34 @@ void Error_Handler(void);
 #define AD7606_NOE_RD_GPIO_Port GPIOD
 #define AD7606_NE1_CS_Pin GPIO_PIN_7
 #define AD7606_NE1_CS_GPIO_Port GPIOD
+#define AD9220_D11_Pin GPIO_PIN_0
+#define AD9220_D11_GPIO_Port GPIOD
+#define AD9220_D0_Pin GPIO_PIN_1
+#define AD9220_D0_GPIO_Port GPIOD
+#define AD9220_D5_Pin GPIO_PIN_8
+#define AD9220_D5_GPIO_Port GPIOD
+#define AD9220_D12_OTR_Pin GPIO_PIN_14
+#define AD9220_D12_OTR_GPIO_Port GPIOD
+#define AD9220_CLK_Pin GPIO_PIN_15
+#define AD9220_CLK_GPIO_Port GPIOD
+#define AD9220_D10_Pin GPIO_PIN_7
+#define AD9220_D10_GPIO_Port GPIOE
+#define AD9220_D1_Pin GPIO_PIN_8
+#define AD9220_D1_GPIO_Port GPIOE
+#define AD9220_D9_Pin GPIO_PIN_9
+#define AD9220_D9_GPIO_Port GPIOE
+#define AD9220_D2_Pin GPIO_PIN_10
+#define AD9220_D2_GPIO_Port GPIOE
+#define AD9220_D8_Pin GPIO_PIN_11
+#define AD9220_D8_GPIO_Port GPIOE
+#define AD9220_D3_Pin GPIO_PIN_12
+#define AD9220_D3_GPIO_Port GPIOE
+#define AD9220_D7_Pin GPIO_PIN_13
+#define AD9220_D7_GPIO_Port GPIOE
+#define AD9220_D4_Pin GPIO_PIN_14
+#define AD9220_D4_GPIO_Port GPIOE
+#define AD9220_D6_Pin GPIO_PIN_15
+#define AD9220_D6_GPIO_Port GPIOE
 #define LCD_BL_Pin GPIO_PIN_12
 #define LCD_BL_GPIO_Port GPIOG
 #define LCD_SCK_Pin GPIO_PIN_13
@@ -102,6 +130,8 @@ void Error_Handler(void);
 #define LCD_DC_GPIO_Port GPIOG
 
 /* USER CODE BEGIN Private defines */
+
+#define APP_LCD_ENABLED 0U
 
 /* USER CODE END Private defines */
 

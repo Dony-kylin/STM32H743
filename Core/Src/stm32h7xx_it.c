@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "ad9220.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,6 +52,30 @@
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static void Fault_UART_Send(const char *text)
+{
+  if ((RCC->APB2ENR & RCC_APB2ENR_USART1EN) == 0U)
+  {
+    return;
+  }
+
+  while (*text != '\0')
+  {
+    uint32_t timeout = 100000U;
+
+    while (((USART1->ISR & USART_ISR_TXE_TXFNF) == 0U) &&
+           (timeout != 0U))
+    {
+      --timeout;
+    }
+    if (timeout == 0U)
+    {
+      return;
+    }
+    USART1->TDR = (uint8_t)*text++;
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -85,7 +110,7 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  Fault_UART_Send("#FAULT HARD\r\n");
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -100,7 +125,7 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  Fault_UART_Send("#FAULT MPU\r\n");
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
@@ -115,7 +140,7 @@ void MemManage_Handler(void)
 void BusFault_Handler(void)
 {
   /* USER CODE BEGIN BusFault_IRQn 0 */
-
+  Fault_UART_Send("#FAULT BUS\r\n");
   /* USER CODE END BusFault_IRQn 0 */
   while (1)
   {
@@ -130,7 +155,7 @@ void BusFault_Handler(void)
 void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
-
+  Fault_UART_Send("#FAULT USAGE\r\n");
   /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {
@@ -160,20 +185,6 @@ void DebugMon_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles EXTI line0 interrupt.
-  */
-void EXTI0_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI0_IRQn 0 */
-
-  /* USER CODE END EXTI0_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(AD7606_BUSY_Pin);
-  /* USER CODE BEGIN EXTI0_IRQn 1 */
-
-  /* USER CODE END EXTI0_IRQn 1 */
-}
-
-/**
   * @brief This function handles TIM6 global interrupt, DAC1_CH1 and DAC1_CH2 underrun error interrupts.
   */
 void TIM6_DAC_IRQHandler(void)
@@ -188,5 +199,15 @@ void TIM6_DAC_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+void DMA1_Stream0_IRQHandler(void)
+{
+  AD9220_DMA_PortE_IRQHandler();
+}
+
+void DMA1_Stream1_IRQHandler(void)
+{
+  AD9220_DMA_PortD_IRQHandler();
+}
 
 /* USER CODE END 1 */

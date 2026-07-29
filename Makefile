@@ -38,7 +38,6 @@ BUILD_DIR = build
 C_SOURCES =  \
 Core/Src/main.c \
 Core/Src/gpio.c \
-Core/Src/fmc.c \
 Core/Src/quadspi.c \
 Core/Src/spi.c \
 Core/Src/usart.c \
@@ -77,7 +76,7 @@ Core/Src/system_stm32h7xx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c \
 Core/Src/freertos.c \
-Expand/Src/ad7606.c \
+Expand/Src/ad9220.c \
 Expand/Src/ad7606_scope.c \
 Expand/Src/ad7606_scope_store.c \
 Expand/Src/lcd_spi_154.c \
