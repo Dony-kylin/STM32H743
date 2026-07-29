@@ -14,8 +14,8 @@ extern "C" {
 #define AD9220_CLOCKS_PER_SAMPLE       1U
 #define AD9220_CAPTURE_SAMPLES         16384U
 /*
- * The ADC is clocked continuously before acquisition starts, so its pipeline
- * contains valid data already; no samples need to be discarded per DMA block.
+ * TIM4_CH4 runs continuously, so the AD9220 pipeline is already settled
+ * before each block is armed.
  */
 #define AD9220_PIPELINE_DELAY          0U
 #define AD9220_MAX_CAPTURE_SAMPLES     AD9220_CAPTURE_SAMPLES
@@ -33,13 +33,11 @@ typedef enum
  *   D0  PD1    D1  PE8    D2  PE10   D3  PE12
  *   D4  PE14   D5  PD8    D6  PE15   D7  PE13
  *   D8  PE11   D9  PE9    D10 PE7    D11 PD0
- *   D12/OTR PD14   CLK PD15 (direct GPIO input)
- *   The external TCXO drives only AD9220 CLK and PD15.
+ *   D12/OTR PD14   CLK PD15 (TIM4_CH4 PWM output)
  *
- * TIM4 generates an 8 MHz update request. Two DMA1 streams read GPIOE/GPIOD
- * into double buffers in D2 SRAM, so the CPU processes one complete block
- * while DMA fills the other one. DMA interrupts occur once per block, not
- * once per sample.
+ * TIM4_CH4 directly drives the AD9220 with an 8 MHz clock. The same timer's
+ * update request reads GPIOE/GPIOD through two DMA1 streams into double
+ * buffers in D2 SRAM. DMA interrupts occur once per block, not per sample.
  */
 void AD9220_Init(void);
 void AD9220_DeInit(void);

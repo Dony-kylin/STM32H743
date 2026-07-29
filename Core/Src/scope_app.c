@@ -459,7 +459,7 @@ void StartTask_Uart(void *argument)
   osDelay(20U);
 
   UART_SendText(
-      "#READY MODE=TIM_DMA_DB RATE=8000000Hz FFT=16384 CLEAN=2450mV\r\n");
+      "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=16384 CLEAN=2450mV\r\n");
   AdcAcquisitionEnabled = 1U;
 
   for(;;)
@@ -612,7 +612,7 @@ void ScopeApp_Init(void)
 
   HAL_Delay(20U);
   UART_SendText(
-      "#READY MODE=TIM_DMA_DB RATE=8000000Hz FFT=16384 CLEAN=2450mV\r\n");
+      "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=16384 CLEAN=2450mV\r\n");
 
 #if APP_LCD_ENABLED
   SPI_LCD_Init();
@@ -1172,7 +1172,7 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendUnsigned(offset, glitch_correction_count);
   offset = UART_StatusAppendText(offset, " CAP_ERR=");
   offset = UART_StatusAppendUnsigned(offset, AdcReadErrorCount);
-  offset = UART_StatusAppendText(offset, " MODE=TIM_DMA_DB DRV_ERR=");
+  offset = UART_StatusAppendText(offset, " MODE=TIM4_PWM_DMA DRV_ERR=");
   offset = UART_StatusAppendUnsigned(offset, dma_error_count);
   offset = UART_StatusAppendText(offset, " DONE=");
   offset = UART_StatusAppendUnsigned(offset, dma_done_mask);
@@ -1436,7 +1436,14 @@ static void UART_SendSpectrumSummary(void)
 
   if (result.valid == 0U)
   {
-    UART_SendText("#FFT INVALID\r\n");
+    (void)snprintf(
+        buffer, sizeof(buffer),
+        "#FFT INVALID f0=%lu.%03luHz A1=%luuV BAD=%lu\r\n",
+        (unsigned long)(result.fundamental_millihz / 1000U),
+        (unsigned long)(result.fundamental_millihz % 1000U),
+        (unsigned long)result.fundamental_amplitude_uv,
+        (unsigned long)result.bad_sample_count);
+    UART_SendText(buffer);
     return;
   }
 

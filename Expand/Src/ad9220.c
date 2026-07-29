@@ -14,14 +14,14 @@
 #define AD9220_DMA_PORT_E_DONE            0x01U
 #define AD9220_DMA_PORT_D_DONE            0x02U
 #define AD9220_NO_READY_BUFFER             0xFFU
-#define AD9220_EDGE_SPIN_LIMIT           100000U
 #define AD9220_TIM4_PRESCALER                 0U
 #define AD9220_TIM4_KERNEL_CLOCK_HZ    240000000U
 #define AD9220_TIM4_PERIOD \
   ((AD9220_TIM4_KERNEL_CLOCK_HZ / AD9220_SAMPLE_RATE_HZ) - 1U)
+#define AD9220_TIM4_PULSE \
+  ((AD9220_TIM4_PERIOD + 1U) / 2U)
 #define AD9220_DMA_IRQ_PRIORITY                6U
 #define AD9220_CAPTURE_ERROR_DMA          0x80000000U
-#define AD9220_CAPTURE_ERROR_CLOCK        0x40000000U
 #define AD9220_GLITCH_JUMP_THRESHOLD     8192L
 #define AD9220_GLITCH_NEIGHBOR_THRESHOLD 8192L
 #define AD9220_DMA_RAM \
@@ -73,9 +73,7 @@ static HAL_StatusTypeDef AD9220_GPIO_Init(void);
 static HAL_StatusTypeDef AD9220_Timer_Init(void);
 static HAL_StatusTypeDef AD9220_DMA_Init(void);
 static HAL_StatusTypeDef AD9220_DMA_Start(void);
-static HAL_StatusTypeDef AD9220_WaitForFallingClockEdge(void);
 static void AD9220_DMA_Stop(void);
-static void AD9220_Timer_ResumeIfPaused(void);
 static void AD9220_DMA_BufferComplete(uint8_t buffer_index,
                                       uint8_t port_mask);
 static void AD9220_DMA_Error(DMA_HandleTypeDef *hdma);
@@ -127,13 +125,14 @@ void AD9220_Init(void)
     ++ad9220_capture_error_count;
     return;
   }
-  if (AD9220_DMA_Start() != HAL_OK)
-  {
-    ad9220_last_error_stage = 4U;
-    ++ad9220_capture_error_count;
-    AD9220_DMA_Stop();
-    return;
-  }
+
+  /*
+   * Keep the ADC clock running continuously. Acquisition blocks only gate
+   * the TIM4 update DMA request; the PWM phase and ADC pipeline never restart.
+   */
+  __HAL_TIM_SET_COUNTER(&ad9220_sample_timer, 0U);
+  __HAL_TIM_CLEAR_FLAG(&ad9220_sample_timer, TIM_FLAG_UPDATE);
+  __HAL_TIM_ENABLE(&ad9220_sample_timer);
 
   ad9220_sample_rate_hz = AD9220_SAMPLE_RATE_HZ;
   ad9220_last_timer_delta = AD9220_TIM4_PERIOD + 1U;
@@ -185,6 +184,8 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
   ad9220_capture_complete = 0U;
   ad9220_ready_buffer = AD9220_NO_READY_BUFFER;
   ad9220_capture_busy = 1U;
+  ad9220_buffer_done_mask[0] = 0U;
+  ad9220_buffer_done_mask[1] = 0U;
   ad9220_last_progress = 0U;
   ad9220_last_clock_level =
       ((GPIOD->IDR & AD9220_CLK_Pin) != 0U) ? 1U : 0U;
@@ -194,7 +195,22 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
   {
     __enable_irq();
   }
-  AD9220_Timer_ResumeIfPaused();
+
+  if (AD9220_DMA_Start() != HAL_OK)
+  {
+    saved_primask = __get_PRIMASK();
+    __disable_irq();
+    ad9220_capture_busy = 0U;
+    ad9220_capture_complete = 0U;
+    ad9220_last_error_stage = 4U;
+    ++ad9220_capture_error_count;
+    __DMB();
+    if (saved_primask == 0U)
+    {
+      __enable_irq();
+    }
+    return AD9220_STATUS_ERROR;
+  }
   return AD9220_STATUS_OK;
 }
 
@@ -203,6 +219,7 @@ void AD9220_AbortCapture(void)
   uint32_t saved_primask = __get_PRIMASK();
 
   __disable_irq();
+  __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
   ad9220_capture_busy = 0U;
   ad9220_capture_complete = 0U;
   ad9220_done_mask = 0U;
@@ -470,7 +487,7 @@ static HAL_StatusTypeDef AD9220_GPIO_Init(void)
                          GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
 
   gpio.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8 |
-             GPIO_PIN_14 | GPIO_PIN_15;
+             GPIO_PIN_14;
   gpio.Mode = GPIO_MODE_INPUT;
   gpio.Pull = GPIO_NOPULL;
   gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -481,11 +498,25 @@ static HAL_StatusTypeDef AD9220_GPIO_Init(void)
              GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |
              GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   HAL_GPIO_Init(GPIOE, &gpio);
+
+  /*
+   * TIM4_CH4 drives the AD9220 sampling clock directly on PD15. The inverted
+   * PWM is low at counter update and rises at CCR4, so the TIM4 update DMA
+   * request occurs half a clock after the ADC rising sampling edge.
+   */
+  gpio.Pin = AD9220_CLK_Pin;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio.Alternate = GPIO_AF2_TIM4;
+  HAL_GPIO_Init(AD9220_CLK_GPIO_Port, &gpio);
   return HAL_OK;
 }
 
 static HAL_StatusTypeDef AD9220_Timer_Init(void)
 {
+  TIM_OC_InitTypeDef clock_channel = {0};
+
   __HAL_RCC_TIM4_CLK_ENABLE();
 
   ad9220_sample_timer.Instance = TIM4;
@@ -496,7 +527,21 @@ static HAL_StatusTypeDef AD9220_Timer_Init(void)
   ad9220_sample_timer.Init.AutoReloadPreload =
       TIM_AUTORELOAD_PRELOAD_DISABLE;
 
-  if (HAL_TIM_Base_Init(&ad9220_sample_timer) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&ad9220_sample_timer) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  clock_channel.OCMode = TIM_OCMODE_PWM1;
+  clock_channel.Pulse = AD9220_TIM4_PULSE;
+  clock_channel.OCPolarity = TIM_OCPOLARITY_LOW;
+  clock_channel.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  clock_channel.OCFastMode = TIM_OCFAST_DISABLE;
+  clock_channel.OCIdleState = TIM_OCIDLESTATE_RESET;
+  clock_channel.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&ad9220_sample_timer,
+                                &clock_channel,
+                                TIM_CHANNEL_4) != HAL_OK)
   {
     return HAL_ERROR;
   }
@@ -505,6 +550,7 @@ static HAL_StatusTypeDef AD9220_Timer_Init(void)
   __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
   __HAL_TIM_SET_COUNTER(&ad9220_sample_timer, 0U);
   __HAL_TIM_CLEAR_FLAG(&ad9220_sample_timer, TIM_FLAG_UPDATE);
+  TIM_CCxChannelCmd(TIM4, TIM_CHANNEL_4, TIM_CCx_ENABLE);
   return HAL_OK;
 }
 
@@ -610,6 +656,33 @@ static HAL_StatusTypeDef AD9220_DMA_Init(void)
 
 static HAL_StatusTypeDef AD9220_DMA_Start(void)
 {
+  /*
+   * A previous circular transfer may already have written a few words into
+   * its next target before the completion ISR stopped TIM4. Abort and reload
+   * both streams so every acquisition starts at index zero on both GPIO
+   * ports, with no stale prefix from the preceding block.
+   */
+  __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
+  if (ad9220_dma_port_e.State == HAL_DMA_STATE_BUSY)
+  {
+    if (HAL_DMA_Abort(&ad9220_dma_port_e) != HAL_OK)
+    {
+      ad9220_port_e_error_code = ad9220_dma_port_e.ErrorCode;
+      return HAL_ERROR;
+    }
+  }
+  if (ad9220_dma_port_d.State == HAL_DMA_STATE_BUSY)
+  {
+    if (HAL_DMA_Abort(&ad9220_dma_port_d) != HAL_OK)
+    {
+      ad9220_port_d_error_code = ad9220_dma_port_d.ErrorCode;
+      return HAL_ERROR;
+    }
+  }
+
+  CLEAR_BIT(DMA1_Stream0->CR, DMA_SxCR_CT);
+  CLEAR_BIT(DMA1_Stream1->CR, DMA_SxCR_CT);
+
   if (HAL_DMAEx_MultiBufferStart_IT(
           &ad9220_dma_port_e,
           (uint32_t)&GPIOE->IDR,
@@ -634,58 +707,13 @@ static HAL_StatusTypeDef AD9220_DMA_Start(void)
   }
 
   /*
-   * Align the first TIM4 period to an AD9220 falling edge. At 8 MSPS TIM4
-   * creates one DMA request every 125 ns. The bounded wait keeps a missing TCXO from
-   * hanging the firmware.
+   * TIM4 is the sole timing source: CH4 continuously outputs the ADC clock
+   * and update events trigger both GPIO DMA streams. With inverted PWM,
+   * update occurs on the PD15 falling edge, half a period after the ADC
+   * rising edge.
    */
-  if (AD9220_WaitForFallingClockEdge() != HAL_OK)
-  {
-    ad9220_port_e_error_code = AD9220_CAPTURE_ERROR_CLOCK;
-    ad9220_port_d_error_code = AD9220_CAPTURE_ERROR_CLOCK;
-    ad9220_fault_latched = 1U;
-    (void)HAL_DMA_Abort(&ad9220_dma_port_e);
-    (void)HAL_DMA_Abort(&ad9220_dma_port_d);
-    return HAL_ERROR;
-  }
-
-  __HAL_TIM_SET_COUNTER(&ad9220_sample_timer, 0U);
   __HAL_TIM_CLEAR_FLAG(&ad9220_sample_timer, TIM_FLAG_UPDATE);
   __HAL_TIM_ENABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
-  __HAL_TIM_ENABLE(&ad9220_sample_timer);
-  return HAL_OK;
-}
-
-static HAL_StatusTypeDef AD9220_WaitForFallingClockEdge(void)
-{
-  uint32_t spins = AD9220_EDGE_SPIN_LIMIT;
-
-  while ((GPIOD->IDR & AD9220_CLK_Pin) != 0U)
-  {
-    if (--spins == 0U)
-    {
-      return HAL_TIMEOUT;
-    }
-  }
-
-  spins = AD9220_EDGE_SPIN_LIMIT;
-  while ((GPIOD->IDR & AD9220_CLK_Pin) == 0U)
-  {
-    if (--spins == 0U)
-    {
-      return HAL_TIMEOUT;
-    }
-  }
-
-  spins = AD9220_EDGE_SPIN_LIMIT;
-  while ((GPIOD->IDR & AD9220_CLK_Pin) != 0U)
-  {
-    if (--spins == 0U)
-    {
-      return HAL_TIMEOUT;
-    }
-  }
-
-  ad9220_last_clock_level = 0U;
   return HAL_OK;
 }
 
@@ -695,6 +723,7 @@ static void AD9220_DMA_Stop(void)
   {
     __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
     __HAL_TIM_DISABLE(&ad9220_sample_timer);
+    TIM_CCxChannelCmd(TIM4, TIM_CHANNEL_4, TIM_CCx_DISABLE);
   }
 
   HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
@@ -720,6 +749,11 @@ static void AD9220_DMA_Stop(void)
       (void)HAL_DMA_Abort(&ad9220_dma_port_d);
     }
     (void)HAL_DMA_DeInit(&ad9220_dma_port_d);
+  }
+
+  if (ad9220_sample_timer.Instance == TIM4)
+  {
+    (void)HAL_TIM_PWM_DeInit(&ad9220_sample_timer);
   }
 }
 
@@ -760,12 +794,11 @@ static void AD9220_DMA_BufferComplete(uint8_t buffer_index,
   ad9220_capture_busy = 0U;
 
   /*
-   * Freeze the completed block before waking the task. At 8 MSPS a block is
-   * only 2.048 ms long; stopping the request source prevents the CPU copy
-   * from racing the DMA as it switches back to the completed buffer.
+   * Freeze the completed DMA block before waking the main loop. TIM4_CH4
+   * keeps driving the ADC continuously; the next capture aborts and reloads
+   * both DMA streams before re-enabling update requests.
    */
   __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
-  __HAL_TIM_DISABLE(&ad9220_sample_timer);
   __DMB();
   AD9220_CaptureCompleteCallback();
 }
@@ -788,25 +821,12 @@ static void AD9220_DMA_Error(DMA_HandleTypeDef *hdma)
   ++ad9220_capture_error_count;
   ad9220_fault_latched = 1U;
   __HAL_TIM_DISABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
-  __HAL_TIM_DISABLE(&ad9220_sample_timer);
 
   if (ad9220_capture_busy != 0U)
   {
     ad9220_capture_busy = 0U;
     ad9220_capture_complete = 0U;
     AD9220_CaptureCompleteCallback();
-  }
-}
-
-static void AD9220_Timer_ResumeIfPaused(void)
-{
-  if ((ad9220_sample_timer.Instance == TIM4) &&
-      ((TIM4->CR1 & TIM_CR1_CEN) == 0U))
-  {
-    __HAL_TIM_SET_COUNTER(&ad9220_sample_timer, 0U);
-    __HAL_TIM_CLEAR_FLAG(&ad9220_sample_timer, TIM_FLAG_UPDATE);
-    __HAL_TIM_ENABLE_DMA(&ad9220_sample_timer, TIM_DMA_UPDATE);
-    __HAL_TIM_ENABLE(&ad9220_sample_timer);
   }
 }
 
