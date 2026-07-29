@@ -577,6 +577,222 @@ static void ScopeAnalyzeMeasurements(const int16_t *samples, uint32_t count,
   }
 }
 
+#if 0
+static uint32_t ScopeEstimateFrequencyFft(
+    const int16_t *samples, uint32_t count, int32_t mean,
+    uint32_t input_sample_rate_hz)
+{
+  float window_cos = 1.0f;
+  float window_sin = 0.0f;
+  float window_step_cos;
+  float window_step_sin;
+  float peak_power = 0.0f;
+  uint32_t minimum_bin;
+  uint32_t maximum_bin;
+  uint32_t peak_bin = 0U;
+
+  if ((samples == NULL) || (count < SCOPE_FFT_SIZE) ||
+      (input_sample_rate_hz == 0U))
+  {
+    return 0U;
+  }
+
+  window_step_cos =
+      cosf((2.0f * SCOPE_PI_F) / (float)(SCOPE_FFT_SIZE - 1U));
+  window_step_sin =
+      sinf((2.0f * SCOPE_PI_F) / (float)(SCOPE_FFT_SIZE - 1U));
+
+  /* Remove DC and apply a Hann window before the in-place complex FFT. */
+  for (uint32_t i = 0U; i < SCOPE_FFT_SIZE; ++i)
+  {
+    float window = 0.5f - (0.5f * window_cos);
+    float next_cos =
+        (window_cos * window_step_cos) -
+        (window_sin * window_step_sin);
+    float next_sin =
+        (window_sin * window_step_cos) +
+        (window_cos * window_step_sin);
+
+    scope_fft_buffer[2U * i] =
+        ((float)samples[i] - (float)mean) * window;
+    scope_fft_buffer[(2U * i) + 1U] = 0.0f;
+    window_cos = next_cos;
+    window_sin = next_sin;
+  }
+
+  /* Iterative radix-2 bit reversal. */
+  {
+    uint32_t reversed = 0U;
+
+    for (uint32_t i = 1U; i < SCOPE_FFT_SIZE; ++i)
+    {
+      uint32_t bit = SCOPE_FFT_SIZE >> 1U;
+
+      while ((reversed & bit) != 0U)
+      {
+        reversed ^= bit;
+        bit >>= 1U;
+      }
+      reversed ^= bit;
+
+      if (i < reversed)
+      {
+        float real = scope_fft_buffer[2U * i];
+        float imaginary = scope_fft_buffer[(2U * i) + 1U];
+
+        scope_fft_buffer[2U * i] =
+            scope_fft_buffer[2U * reversed];
+        scope_fft_buffer[(2U * i) + 1U] =
+            scope_fft_buffer[(2U * reversed) + 1U];
+        scope_fft_buffer[2U * reversed] = real;
+        scope_fft_buffer[(2U * reversed) + 1U] = imaginary;
+      }
+    }
+  }
+
+  /* In-place radix-2 Cooley-Tukey FFT. */
+  for (uint32_t length = 2U;
+       length <= SCOPE_FFT_SIZE;
+       length <<= 1U)
+  {
+    uint32_t half = length >> 1U;
+    float angle = (-2.0f * SCOPE_PI_F) / (float)length;
+    float step_real = cosf(angle);
+    float step_imaginary = sinf(angle);
+
+    for (uint32_t base = 0U; base < SCOPE_FFT_SIZE; base += length)
+    {
+      float twiddle_real = 1.0f;
+      float twiddle_imaginary = 0.0f;
+
+      for (uint32_t j = 0U; j < half; ++j)
+      {
+        uint32_t even = base + j;
+        uint32_t odd = even + half;
+        float odd_real =
+            scope_fft_buffer[2U * odd];
+        float odd_imaginary =
+            scope_fft_buffer[(2U * odd) + 1U];
+        float rotated_real =
+            (twiddle_real * odd_real) -
+            (twiddle_imaginary * odd_imaginary);
+        float rotated_imaginary =
+            (twiddle_real * odd_imaginary) +
+            (twiddle_imaginary * odd_real);
+        float even_real =
+            scope_fft_buffer[2U * even];
+        float even_imaginary =
+            scope_fft_buffer[(2U * even) + 1U];
+        float next_twiddle_real =
+            (twiddle_real * step_real) -
+            (twiddle_imaginary * step_imaginary);
+
+        scope_fft_buffer[2U * even] =
+            even_real + rotated_real;
+        scope_fft_buffer[(2U * even) + 1U] =
+            even_imaginary + rotated_imaginary;
+        scope_fft_buffer[2U * odd] =
+            even_real - rotated_real;
+        scope_fft_buffer[(2U * odd) + 1U] =
+            even_imaginary - rotated_imaginary;
+        twiddle_imaginary =
+            (twiddle_imaginary * step_real) +
+            (twiddle_real * step_imaginary);
+        twiddle_real = next_twiddle_real;
+      }
+    }
+  }
+
+  minimum_bin = (uint32_t)
+      (((uint64_t)SCOPE_FFT_MIN_FREQUENCY_HZ *
+        SCOPE_FFT_SIZE + input_sample_rate_hz - 1U) /
+       input_sample_rate_hz);
+  maximum_bin = (uint32_t)
+      (((uint64_t)SCOPE_FFT_MAX_FREQUENCY_HZ *
+        SCOPE_FFT_SIZE) / input_sample_rate_hz);
+  if (minimum_bin < 1U)
+  {
+    minimum_bin = 1U;
+  }
+  if (maximum_bin >= (SCOPE_FFT_SIZE / 2U))
+  {
+    maximum_bin = (SCOPE_FFT_SIZE / 2U) - 1U;
+  }
+  if (minimum_bin > maximum_bin)
+  {
+    return 0U;
+  }
+
+  for (uint32_t bin = minimum_bin; bin <= maximum_bin; ++bin)
+  {
+    float real = scope_fft_buffer[2U * bin];
+    float imaginary = scope_fft_buffer[(2U * bin) + 1U];
+    float power = (real * real) + (imaginary * imaginary);
+
+    if (power > peak_power)
+    {
+      peak_power = power;
+      peak_bin = bin;
+    }
+  }
+
+  if ((peak_bin <= minimum_bin) || (peak_bin >= maximum_bin) ||
+      (peak_power <= 0.0f))
+  {
+    return (peak_bin != 0U) ?
+        (uint32_t)(((uint64_t)peak_bin * input_sample_rate_hz *
+                    1000U) / SCOPE_FFT_SIZE) : 0U;
+  }
+
+  /*
+   * Log-power parabolic interpolation reduces the remaining fractional-bin
+   * error without changing the 122 Hz fundamental FFT resolution.
+   */
+  {
+    float left_real = scope_fft_buffer[2U * (peak_bin - 1U)];
+    float left_imaginary =
+        scope_fft_buffer[(2U * (peak_bin - 1U)) + 1U];
+    float right_real = scope_fft_buffer[2U * (peak_bin + 1U)];
+    float right_imaginary =
+        scope_fft_buffer[(2U * (peak_bin + 1U)) + 1U];
+    float left_power =
+        (left_real * left_real) + (left_imaginary * left_imaginary);
+    float right_power =
+        (right_real * right_real) + (right_imaginary * right_imaginary);
+    float delta = 0.0f;
+
+    if ((left_power > 0.0f) && (right_power > 0.0f))
+    {
+      float left_log = logf(left_power);
+      float center_log = logf(peak_power);
+      float right_log = logf(right_power);
+      float denominator =
+          left_log - (2.0f * center_log) + right_log;
+
+      if (fabsf(denominator) > 1.0e-12f)
+      {
+        delta = 0.5f * (left_log - right_log) / denominator;
+        if (delta > 0.5f)
+        {
+          delta = 0.5f;
+        }
+        else if (delta < -0.5f)
+        {
+          delta = -0.5f;
+        }
+      }
+    }
+
+    {
+      float frequency_hz =
+          ((float)peak_bin + delta) *
+          ((float)input_sample_rate_hz / (float)SCOPE_FFT_SIZE);
+      return (uint32_t)((frequency_hz * 1000.0f) + 0.5f);
+    }
+  }
+}
+#endif
+
 static void ScopeAnalyzeAndRender(uint32_t count,
                                   const AD7606_ScopeConfig *config)
 {

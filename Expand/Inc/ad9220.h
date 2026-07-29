@@ -32,9 +32,9 @@ typedef enum
  *   D12/OTR PD14   CLK PD15 (direct GPIO input)
  *   The external TCXO drives only AD9220 CLK and PD15.
  *
- * A polling loop follows the external 8 MHz clock and reads GPIOE/GPIOD
- * back-to-back on every fourth falling edge. The effective sample rate is
- * 2 MHz and a 16384-sample block occupies about 8.2 ms.
+ * The first point is synchronized to the external 8 MHz clock. A DWT-paced
+ * polling loop then reads GPIOE/GPIOD every 240 CPU cycles, giving a precise
+ * 2 MHz sample rate. Each port pair is checked twice for consistency.
  */
 void AD9220_Init(void);
 void AD9220_DeInit(void);

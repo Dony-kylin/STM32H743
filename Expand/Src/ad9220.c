@@ -8,6 +8,10 @@
 #define AD9220_PORT_D_MASK(pin) \
   ((uint32_t)(pin) << AD9220_PORT_D_SHIFT)
 #define AD9220_OTR_MASK                   AD9220_PORT_D_MASK(GPIO_PIN_14)
+#define AD9220_PORT_E_DATA_MASK           0x0000FF80UL
+#define AD9220_PORT_D_DATA_MASK \
+  AD9220_PORT_D_MASK(GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8 | GPIO_PIN_14)
+#define AD9220_STABILITY_RETRIES           3U
 #define AD9220_CAPTURE_DONE_BUS          0x03U
 #define AD9220_EDGE_SPIN_LIMIT           8192U
 #define AD9220_CAPTURE_ERROR_TIMEOUT     0x00000001U
@@ -18,9 +22,9 @@
   __attribute__((section(".ad9220_capture_ram"), aligned(32)))
 
 /*
- * Each word stores GPIOE in bits 0..15 and GPIOD in bits 16..31. Sampling
- * immediately after the AD9220 clock falling edge avoids split-port tearing:
- * all ADC outputs have already been stable for half of the 8 MHz period.
+ * Each word stores GPIOE in bits 0..15 and GPIOD in bits 16..31. The first
+ * point is phase-aligned to CLK; later points use a precise 2 MHz DWT schedule
+ * and double-read consistency checking prevents split-port tearing.
  */
 static volatile uint32_t
     ad9220_gpio_samples[AD9220_CAPTURE_TRANSFER_COUNT]
@@ -77,10 +81,9 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
 {
   uint32_t transfer_count;
   uint32_t expected_core_cycles;
-  uint32_t adc_clock_cycles;
-  uint32_t sync_delay_cycles;
   uint32_t saved_primask;
   uint32_t start_cycle;
+  uint32_t next_cycle;
   uint32_t elapsed_cycles;
   uint32_t average_cycles;
   uint32_t spins;
@@ -116,14 +119,6 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
       ((GPIOD->IDR & AD9220_CLK_Pin) != 0U) ? 1U : 0U;
 
   expected_core_cycles = SystemCoreClock / AD9220_SAMPLE_RATE_HZ;
-  adc_clock_cycles = SystemCoreClock / AD9220_ADC_CLOCK_HZ;
-  /*
-   * After one sampled falling edge, skip into the low half-cycle immediately
-   * before the fourth following falling edge. The final high->low poll then
-   * phase-locks each 2 MHz sample to the external 8 MHz ADC clock.
-   */
-  sync_delay_cycles =
-      expected_core_cycles - ((adc_clock_cycles * 3U) / 4U);
   ad9220_last_timer_delta = 0U;
   ad9220_timer_delta_limit =
       expected_core_cycles + (expected_core_cycles / 2U) + 2U;
@@ -150,13 +145,9 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
     }
   }
 
-  start_cycle = DWT->CYCCNT;
-  for (i = 0U; (i < transfer_count) && (capture_error == 0U); ++i)
+  /* Align only the first point to a stable AD9220 falling edge. */
+  if (capture_error == 0U)
   {
-    uint32_t edge_cycle;
-    uint32_t port_e;
-    uint32_t port_d;
-
     spins = AD9220_EDGE_SPIN_LIMIT;
     while ((GPIOD->IDR & AD9220_CLK_Pin) == 0U)
     {
@@ -167,11 +158,9 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
         break;
       }
     }
-    if (capture_error != 0U)
-    {
-      break;
-    }
-
+  }
+  if (capture_error == 0U)
+  {
     spins = AD9220_EDGE_SPIN_LIMIT;
     while ((GPIOD->IDR & AD9220_CLK_Pin) != 0U)
     {
@@ -182,28 +171,53 @@ AD9220_Status AD9220_StartCapture(uint32_t sample_count)
         break;
       }
     }
-    if (capture_error != 0U)
-    {
-      break;
-    }
+  }
 
-    edge_cycle = DWT->CYCCNT;
+  start_cycle = DWT->CYCCNT;
+  next_cycle = start_cycle;
+  for (i = 0U; (i < transfer_count) && (capture_error == 0U); ++i)
+  {
+    uint32_t port_e;
+    uint32_t port_d;
+    uint32_t confirm_e;
+    uint32_t confirm_d;
 
     /*
-     * At the falling edge the ADC data has been stable for about 62.5 ns.
-     * The two back-to-back GPIO reads complete before the next rising edge.
+     * DWT runs at the 480 MHz CPU clock. An absolute 240-cycle schedule gives
+     * exactly 2 MSPS and cannot accumulate loop-execution jitter.
      */
-    port_e = GPIOE->IDR;
-    port_d = GPIOD->IDR;
-    ad9220_gpio_samples[i] =
-        (port_d << AD9220_PORT_D_SHIFT) | (port_e & 0xFFFFU);
-
-    if ((i + 1U) < transfer_count)
+    if (i != 0U)
     {
-      while ((DWT->CYCCNT - edge_cycle) < sync_delay_cycles)
+      next_cycle += expected_core_cycles;
+      while ((int32_t)(DWT->CYCCNT - next_cycle) < 0)
       {
       }
     }
+
+    /*
+     * Read both GPIO ports twice. If the ADC changes data during the split
+     * read, retry inside the 500 ns sample budget and keep one stable pair.
+     */
+    port_e = GPIOE->IDR;
+    port_d = GPIOD->IDR;
+    for (uint32_t retry = 0U;
+         retry < AD9220_STABILITY_RETRIES;
+         ++retry)
+    {
+      confirm_e = GPIOE->IDR;
+      confirm_d = GPIOD->IDR;
+      if ((((port_e ^ confirm_e) & AD9220_PORT_E_DATA_MASK) == 0U) &&
+          ((((port_d ^ confirm_d) << AD9220_PORT_D_SHIFT) &
+            AD9220_PORT_D_DATA_MASK) == 0U))
+      {
+        break;
+      }
+      port_e = confirm_e;
+      port_d = confirm_d;
+    }
+
+    ad9220_gpio_samples[i] =
+        (port_d << AD9220_PORT_D_SHIFT) | (port_e & 0xFFFFU);
   }
   elapsed_cycles = DWT->CYCCNT - start_cycle;
   ad9220_last_progress = i;

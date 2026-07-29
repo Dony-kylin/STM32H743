@@ -80,6 +80,7 @@ volatile uint32_t AdcTelemetryDropCount;
 volatile uint32_t AdcUartErrorCount;
 static volatile uint8_t AdcDumpRequest;
 static volatile uint8_t AdcDumpReady;
+static volatile uint32_t AdcDumpRequestTick;
 static volatile uint8_t AdcAcquisitionEnabled;
 static volatile uint8_t AdcCapturePauseRequest;
 static volatile uint8_t AdcCapturePaused;
@@ -390,6 +391,15 @@ void StartTask_Uart(void *argument)
 
     UART_PollScopeCommands();
 
+    if ((AdcDumpRequest != 0U) &&
+        ((HAL_GetTick() - AdcDumpRequestTick) >= 1000U))
+    {
+      taskENTER_CRITICAL();
+      AdcDumpRequest = 0U;
+      taskEXIT_CRITICAL();
+      UART_SendText("#ERR DUMP acquisition timeout\r\n");
+    }
+
     if (AdcDumpReady != 0U)
     {
       UART_SendDump();
@@ -523,6 +533,7 @@ static void UART_HandleScopeCommand(char *command)
     {
       taskENTER_CRITICAL();
       AdcDumpRequest = 1U;
+      AdcDumpRequestTick = HAL_GetTick();
       taskEXIT_CRITICAL();
       UART_SendText("#OK DUMP ARMED\r\n");
     }
