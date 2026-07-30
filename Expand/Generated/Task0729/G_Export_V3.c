@@ -1,6 +1,6 @@
-#include "G_Export_V2.h"
+#include "G_Export_V3.h"
 #include "rtwtypes.h"
-#include "G_Export_V2_private.h"
+#include "G_Export_V3_private.h"
 #include <math.h>
 #include <string.h>
 
@@ -11,16 +11,16 @@
 #define TASK0729_AXI_RAM
 #endif
 
-#define G_Export_V2_Fs                 (2.0E+6)
-#define G_Export_V2_NFFT               (4096.0)
+#define G_Export_V3_Fs                 (2.0E+6)
+#define G_Export_V3_NFFT               (4096.0)
 
-B_G_Export_V2_T G_Export_V2_B TASK0729_AXI_RAM;
-DW_G_Export_V2_T G_Export_V2_DW;
-ExtU_G_Export_V2_T G_Export_V2_U TASK0729_AXI_RAM;
-ExtY_G_Export_V2_T G_Export_V2_Y;
-static RT_MODEL_G_Export_V2_T G_Export_V2_M_;
-RT_MODEL_G_Export_V2_T *const G_Export_V2_M = &G_Export_V2_M_;
-static real32_T G_Export_V2_peak_vertex(const real32_T x[4096], real32_T dc,
+B_G_Export_V3_T G_Export_V3_B TASK0729_AXI_RAM;
+DW_G_Export_V3_T G_Export_V3_DW;
+ExtU_G_Export_V3_T G_Export_V3_U TASK0729_AXI_RAM;
+ExtY_G_Export_V3_T G_Export_V3_Y;
+static RT_MODEL_G_Export_V3_T G_Export_V3_M_;
+RT_MODEL_G_Export_V3_T *const G_Export_V3_M = &G_Export_V3_M_;
+static real32_T G_Export_V3_peak_vertex(const real32_T x[4096], real32_T dc,
   real_T k, real_T N, boolean_T isMaximum);
 void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
   nChans, int32_T nRows)
@@ -251,25 +251,7 @@ real32_T rt_hypotf(real32_T u0, real32_T u1)
   return y;
 }
 
-real_T rt_roundd(real_T u)
-{
-  real_T y;
-  if (fabs(u) < 4.503599627370496E+15) {
-    if (u >= 0.5) {
-      y = floor(u + 0.5);
-    } else if (u > -0.5) {
-      y = 0.0;
-    } else {
-      y = ceil(u - 0.5);
-    }
-  } else {
-    y = u;
-  }
-
-  return y;
-}
-
-static real32_T G_Export_V2_peak_vertex(const real32_T x[4096], real32_T dc,
+static real32_T G_Export_V3_peak_vertex(const real32_T x[4096], real32_T dc,
   real_T k, real_T N, boolean_T isMaximum)
 {
   real_T km;
@@ -303,19 +285,22 @@ static real32_T G_Export_V2_peak_vertex(const real32_T x[4096], real32_T dc,
   return yv;
 }
 
-void G_Export_V2_step(void)
+void G_Export_V3_step(void)
 {
-  int32_T count;
+  real_T i0;
+  real_T startIndex;
+  int32_T d;
   int32_T i;
   int32_T imin;
+  int32_T p;
   int32_T q;
-  int32_T startIndex;
   real32_T bestBin[3];
   real32_T bestScore[3];
   real32_T ampApprox;
+  real32_T ay;
   real32_T b_y1;
   real32_T c;
-  real32_T cs;
+  real32_T cw;
   real32_T den;
   real32_T orderValue;
   real32_T r;
@@ -326,73 +311,71 @@ void G_Export_V2_step(void)
   real32_T y3;
   boolean_T exitg1;
   for (i = 0; i < 16384; i++) {
-    G_Export_V2_B.Q15ADC[i] = 7.62939453E-5F * (real32_T)
-      G_Export_V2_U.adc_block[i];
+    G_Export_V3_B.Q15ADC[i] = 7.62939453E-5F * (real32_T)
+      G_Export_V3_U.adc_block[i];
   }
 
   i = 0;
   imin = 0;
   while (imin < 16384) {
-    if (G_Export_V2_DW.FIR4_PhaseIdx == 3) {
-      for (count = 0; count < 16; count++) {
-        G_Export_V2_DW.FIR4_Sums[count] = G_Export_V2_ConstP.FIR4_FILT[count +
-          48] * G_Export_V2_B.Q15ADC[imin];
+    if (G_Export_V3_DW.FIR4_PhaseIdx == 3) {
+      for (p = 0; p < 16; p++) {
+        G_Export_V3_DW.FIR4_Sums[p] = G_Export_V3_ConstP.FIR4_FILT[p + 48] *
+          G_Export_V3_B.Q15ADC[imin];
       }
 
       imin++;
-      G_Export_V2_DW.FIR4_PhaseIdx = 2;
+      G_Export_V3_DW.FIR4_PhaseIdx = 2;
     }
 
-    while ((imin < 16384) && (G_Export_V2_DW.FIR4_PhaseIdx > -1)) {
-      for (count = 0; count < 16; count++) {
-        G_Export_V2_DW.FIR4_Sums[count] += G_Export_V2_ConstP.FIR4_FILT
-          [(G_Export_V2_DW.FIR4_PhaseIdx << 4) + count] *
-          G_Export_V2_B.Q15ADC[imin];
+    while ((imin < 16384) && (G_Export_V3_DW.FIR4_PhaseIdx > -1)) {
+      for (p = 0; p < 16; p++) {
+        G_Export_V3_DW.FIR4_Sums[p] += G_Export_V3_ConstP.FIR4_FILT
+          [(G_Export_V3_DW.FIR4_PhaseIdx << 4) + p] * G_Export_V3_B.Q15ADC[imin];
       }
 
       imin++;
-      G_Export_V2_DW.FIR4_PhaseIdx--;
+      G_Export_V3_DW.FIR4_PhaseIdx--;
     }
 
-    if (G_Export_V2_DW.FIR4_PhaseIdx == -1) {
-      G_Export_V2_B.FIR4[i] = G_Export_V2_DW.FIR4_StatesBuff[0] +
-        G_Export_V2_DW.FIR4_Sums[0];
+    if (G_Export_V3_DW.FIR4_PhaseIdx == -1) {
+      G_Export_V3_B.FIR4[i] = G_Export_V3_DW.FIR4_StatesBuff[0] +
+        G_Export_V3_DW.FIR4_Sums[0];
       i++;
-      for (count = 0; count < 14; count++) {
-        G_Export_V2_DW.FIR4_StatesBuff[count] =
-          G_Export_V2_DW.FIR4_StatesBuff[count + 1] +
-          G_Export_V2_DW.FIR4_Sums[count + 1];
+      for (p = 0; p < 14; p++) {
+        G_Export_V3_DW.FIR4_StatesBuff[p] = G_Export_V3_DW.FIR4_StatesBuff[p + 1]
+          + G_Export_V3_DW.FIR4_Sums[p + 1];
       }
 
-      G_Export_V2_DW.FIR4_StatesBuff[14] = G_Export_V2_DW.FIR4_Sums[15];
-      G_Export_V2_DW.FIR4_PhaseIdx = 3;
+      G_Export_V3_DW.FIR4_StatesBuff[14] = G_Export_V3_DW.FIR4_Sums[15];
+      G_Export_V3_DW.FIR4_PhaseIdx = 3;
     }
   }
 
   for (i = 0; i < 4096; i++) {
-    G_Export_V2_B.Hann[i] = G_Export_V2_B.FIR4[i] *
-      G_Export_V2_ConstP.Hann_WindowSamples[i];
+    G_Export_V3_B.Hann[i] = G_Export_V3_B.FIR4[i] *
+      G_Export_V3_ConstP.Hann_WindowSamples[i];
   }
 
-  MWDSPCG_FFT_Interleave_R2BR_S(&G_Export_V2_B.Hann[0U], &G_Export_V2_B.u096FFT
+  MWDSPCG_FFT_Interleave_R2BR_S(&G_Export_V3_B.Hann[0U], &G_Export_V3_B.u096FFT
     [0U], 1, 4096);
-  MWDSPCG_R2DIT_TBLS_C(&G_Export_V2_B.u096FFT[0U], 1, 4096, 2048, 0,
-                       &G_Export_V2_ConstP.u096FFT_TwiddleTable[0U], 2, false);
-  MWDSPCG_FFT_DblLen_C(&G_Export_V2_B.u096FFT[0U], 1, 4096,
-                       &G_Export_V2_ConstP.u096FFT_TwiddleTable[0U], 1);
-  G_Export_V2_Y.component_count = 0U;
-  G_Export_V2_Y.frequency_Hz[0] = 0.0F;
-  G_Export_V2_Y.amplitude_Vpk[0] = 0.0F;
-  G_Export_V2_Y.harmonic_order[0] = 0U;
-  G_Export_V2_Y.frequency_Hz[1] = 0.0F;
-  G_Export_V2_Y.amplitude_Vpk[1] = 0.0F;
-  G_Export_V2_Y.harmonic_order[1] = 0U;
-  G_Export_V2_Y.frequency_Hz[2] = 0.0F;
-  G_Export_V2_Y.amplitude_Vpk[2] = 0.0F;
-  G_Export_V2_Y.harmonic_order[2] = 0U;
+  MWDSPCG_R2DIT_TBLS_C(&G_Export_V3_B.u096FFT[0U], 1, 4096, 2048, 0,
+                       &G_Export_V3_ConstP.u096FFT_TwiddleTable[0U], 2, false);
+  MWDSPCG_FFT_DblLen_C(&G_Export_V3_B.u096FFT[0U], 1, 4096,
+                       &G_Export_V3_ConstP.u096FFT_TwiddleTable[0U], 1);
+  G_Export_V3_Y.component_count = 0U;
+  G_Export_V3_Y.frequency_Hz[0] = 0.0F;
+  G_Export_V3_Y.amplitude_Vpk[0] = 0.0F;
+  G_Export_V3_Y.harmonic_order[0] = 0U;
+  G_Export_V3_Y.frequency_Hz[1] = 0.0F;
+  G_Export_V3_Y.amplitude_Vpk[1] = 0.0F;
+  G_Export_V3_Y.harmonic_order[1] = 0U;
+  G_Export_V3_Y.frequency_Hz[2] = 0.0F;
+  G_Export_V3_Y.amplitude_Vpk[2] = 0.0F;
+  G_Export_V3_Y.harmonic_order[2] = 0U;
   for (i = 0; i < 4096; i++) {
-    G_Export_V2_B.Hann[i] = rt_hypotf(G_Export_V2_B.u096FFT[i].re,
-      G_Export_V2_B.u096FFT[i].im);
+    G_Export_V3_B.Hann[i] = rt_hypotf(G_Export_V3_B.u096FFT[i].re,
+      G_Export_V3_B.u096FFT[i].im);
   }
 
   bestScore[0] = 0.0F;
@@ -401,45 +384,45 @@ void G_Export_V2_step(void)
   bestBin[1] = 0.0F;
   bestScore[2] = 0.0F;
   bestBin[2] = 0.0F;
-  if (G_Export_V2_U.mode == 1) {
+  if (G_Export_V3_U.mode == 1) {
     ampApprox = 200000.0F;
   } else {
     ampApprox = 500000.0F;
   }
 
-  i = (int32_T)ceil(ampApprox * G_Export_V2_NFFT / G_Export_V2_Fs);
+  i = (int32_T)ceil(ampApprox * G_Export_V3_NFFT / G_Export_V3_Fs);
   for (imin = 0; imin <= i - 20; imin++) {
-    ampApprox = G_Export_V2_B.Hann[imin + 21];
-    orderValue = G_Export_V2_B.Hann[imin + 20];
+    ampApprox = G_Export_V3_B.Hann[imin + 21];
+    orderValue = G_Export_V3_B.Hann[imin + 20];
     if (ampApprox >= orderValue) {
-      cs = G_Export_V2_B.Hann[imin + 22];
-      if (ampApprox > cs) {
+      ay = G_Export_V3_B.Hann[imin + 22];
+      if (ampApprox > ay) {
         b_y1 = logf(fmaxf(orderValue, 1.0E-30F));
-        y3 = logf(fmaxf(cs, 1.0E-30F));
+        y3 = logf(fmaxf(ay, 1.0E-30F));
         den = (b_y1 - 2.0F * logf(fmaxf(ampApprox, 1.0E-30F))) + y3;
-        ss = 0.0F;
+        cw = 0.0F;
         if (fabsf(den) > 1.0E-20F) {
-          ss = (b_y1 - y3) * 0.5F / den;
+          cw = (b_y1 - y3) * 0.5F / den;
         }
 
-        b_y1 = fminf(0.5F, fmaxf(-0.5F, ss));
-        ampApprox = ((orderValue + ampApprox) + cs) * 2.0F / 4095.0F;
+        b_y1 = fminf(0.5F, fmaxf(-0.5F, cw));
+        ampApprox = ((orderValue + ampApprox) + ay) * 2.0F / 4095.0F;
         if (ampApprox >= 0.004F) {
-          count = 0;
+          p = 0;
           exitg1 = false;
-          while ((!exitg1) && (count < 3)) {
-            if (ampApprox > bestScore[count]) {
-              startIndex = 2 - count;
-              for (q = 0; q < startIndex; q++) {
+          while ((!exitg1) && (p < 3)) {
+            if (ampApprox > bestScore[p]) {
+              d = 2 - p;
+              for (q = 0; q < d; q++) {
                 bestScore[2 - q] = bestScore[1 - q];
                 bestBin[2 - q] = bestBin[1 - q];
               }
 
-              bestScore[count] = ampApprox;
-              bestBin[count] = (((real32_T)imin + 22.0F) - 1.0F) + b_y1;
+              bestScore[p] = ampApprox;
+              bestBin[p] = (((real32_T)imin + 22.0F) - 1.0F) + b_y1;
               exitg1 = true;
             } else {
-              count++;
+              p++;
             }
           }
         }
@@ -448,176 +431,218 @@ void G_Export_V2_step(void)
   }
 
   if (bestScore[0] > 0.0F) {
-    G_Export_V2_Y.frequency_Hz[0] = bestBin[0] * 488.28125F;
-    G_Export_V2_Y.component_count = 1U;
+    G_Export_V3_Y.frequency_Hz[0] = bestBin[0] * 488.28125F;
+    G_Export_V3_Y.component_count = 1U;
   }
 
   if (bestScore[1] > 0.0F) {
-    G_Export_V2_Y.frequency_Hz[1] = bestBin[1] * 488.28125F;
-    G_Export_V2_Y.component_count++;
+    G_Export_V3_Y.frequency_Hz[1] = bestBin[1] * 488.28125F;
+    G_Export_V3_Y.component_count++;
   }
 
   if (bestScore[2] > 0.0F) {
-    G_Export_V2_Y.frequency_Hz[2] = bestBin[2] * 488.28125F;
-    G_Export_V2_Y.component_count++;
+    G_Export_V3_Y.frequency_Hz[2] = bestBin[2] * 488.28125F;
+    G_Export_V3_Y.component_count++;
   }
 
   for (i = 0; i < 2; i++) {
     imin = 2 - i;
-    for (count = 0; count < imin; count++) {
-      startIndex = (i + count) + 1;
-      if ((G_Export_V2_Y.frequency_Hz[startIndex] > 0.0F) &&
-          ((G_Export_V2_Y.frequency_Hz[i] == 0.0F) ||
-           (G_Export_V2_Y.frequency_Hz[startIndex] <
-            G_Export_V2_Y.frequency_Hz[i]))) {
-        ampApprox = G_Export_V2_Y.frequency_Hz[i];
-        G_Export_V2_Y.frequency_Hz[i] = G_Export_V2_Y.frequency_Hz[startIndex];
-        G_Export_V2_Y.frequency_Hz[startIndex] = ampApprox;
+    for (p = 0; p < imin; p++) {
+      d = (i + p) + 1;
+      if ((G_Export_V3_Y.frequency_Hz[d] > 0.0F) &&
+          ((G_Export_V3_Y.frequency_Hz[i] == 0.0F) ||
+           (G_Export_V3_Y.frequency_Hz[d] < G_Export_V3_Y.frequency_Hz[i]))) {
+        ampApprox = G_Export_V3_Y.frequency_Hz[i];
+        G_Export_V3_Y.frequency_Hz[i] = G_Export_V3_Y.frequency_Hz[d];
+        G_Export_V3_Y.frequency_Hz[d] = ampApprox;
       }
     }
   }
 
-  if (G_Export_V2_Y.frequency_Hz[0] > 0.0F) {
-    ampApprox = G_Export_V2_Y.frequency_Hz[0] / G_Export_V2_Y.frequency_Hz[0];
+  if (G_Export_V3_Y.frequency_Hz[0] > 0.0F) {
+    ampApprox = G_Export_V3_Y.frequency_Hz[0] / G_Export_V3_Y.frequency_Hz[0];
     orderValue = roundf(ampApprox);
     if ((orderValue >= 1.0F) && (orderValue <= 255.0F) && (fabsf(ampApprox -
           orderValue) < 0.15F)) {
-      G_Export_V2_Y.harmonic_order[0] = (uint8_T)orderValue;
+      G_Export_V3_Y.harmonic_order[0] = (uint8_T)orderValue;
     }
 
-    if (G_Export_V2_Y.frequency_Hz[1] > 0.0F) {
-      ampApprox = G_Export_V2_Y.frequency_Hz[1] / G_Export_V2_Y.frequency_Hz[0];
+    if (G_Export_V3_Y.frequency_Hz[1] > 0.0F) {
+      ampApprox = G_Export_V3_Y.frequency_Hz[1] / G_Export_V3_Y.frequency_Hz[0];
       orderValue = roundf(ampApprox);
       if ((orderValue >= 1.0F) && (orderValue <= 255.0F) && (fabsf(ampApprox -
             orderValue) < 0.15F)) {
-        G_Export_V2_Y.harmonic_order[1] = (uint8_T)orderValue;
+        G_Export_V3_Y.harmonic_order[1] = (uint8_T)orderValue;
       }
     }
 
-    if (G_Export_V2_Y.frequency_Hz[2] > 0.0F) {
-      ampApprox = G_Export_V2_Y.frequency_Hz[2] / G_Export_V2_Y.frequency_Hz[0];
+    if (G_Export_V3_Y.frequency_Hz[2] > 0.0F) {
+      ampApprox = G_Export_V3_Y.frequency_Hz[2] / G_Export_V3_Y.frequency_Hz[0];
       orderValue = roundf(ampApprox);
       if ((orderValue >= 1.0F) && (orderValue <= 255.0F) && (fabsf(ampApprox -
             orderValue) < 0.15F)) {
-        G_Export_V2_Y.harmonic_order[2] = (uint8_T)orderValue;
+        G_Export_V3_Y.harmonic_order[2] = (uint8_T)orderValue;
       }
     }
   }
 
   ampApprox = 0.0F;
   for (i = 0; i < 4096; i++) {
-    ampApprox += G_Export_V2_B.FIR4[i];
+    ampApprox += G_Export_V3_B.FIR4[i];
   }
 
   ampApprox /= 4096.0F;
+  orderValue = 0.0F;
+  for (p = 0; p < 4096; p++) {
+    ay = fabsf(G_Export_V3_B.FIR4[p] - ampApprox);
+    if (ay > orderValue) {
+      orderValue = ay;
+    }
+  }
+
   for (i = 0; i < 3; i++) {
-    orderValue = G_Export_V2_Y.frequency_Hz[i];
-    if (orderValue > 0.0F) {
-      orderValue = 6.28318548F * orderValue / 2.0E+6F;
-      den = cosf(orderValue);
-      sw = sinf(orderValue);
+    ay = G_Export_V3_Y.frequency_Hz[i];
+    if (ay > 0.0F) {
+      ay = 6.28318548F * ay / 2.0E+6F;
+      cw = cosf(ay);
+      sw = sinf(ay);
       c = 1.0F;
       sn = 0.0F;
-      orderValue = 0.0F;
+      ay = 0.0F;
       ss = 0.0F;
-      cs = 0.0F;
       b_y1 = 0.0F;
       y3 = 0.0F;
-      for (count = 0; count < 4096; count++) {
-        y = G_Export_V2_B.FIR4[count] - ampApprox;
-        orderValue += c * c;
+      den = 0.0F;
+      for (p = 0; p < 4096; p++) {
+        y = G_Export_V3_B.FIR4[p] - ampApprox;
+        ay += c * c;
         ss += sn * sn;
-        cs += c * sn;
-        b_y1 += y * c;
-        y3 += y * sn;
-        y = c * den - sn * sw;
-        sn = sn * den + c * sw;
+        b_y1 += c * sn;
+        y3 += y * c;
+        den += y * sn;
+        y = c * cw - sn * sw;
+        sn = sn * cw + c * sw;
         c = y;
-        if (((uint32_T)(count + 1) & 255U) == 0U) {
+        if (((uint32_T)(p + 1) & 255U) == 0U) {
           r = sqrtf(y * y + sn * sn);
           c = y / r;
           sn /= r;
         }
       }
 
-      den = orderValue * ss - cs * cs;
-      if (fabsf(den) > 1.0E-20F) {
-        ss = (b_y1 * ss - y3 * cs) / den;
-        orderValue = (y3 * orderValue - b_y1 * cs) / den;
-        G_Export_V2_Y.amplitude_Vpk[i] = sqrtf(ss * ss + orderValue * orderValue);
+      cw = ay * ss - b_y1 * b_y1;
+      if (fabsf(cw) > 1.0E-20F) {
+        ss = (y3 * ss - den * b_y1) / cw;
+        ay = (den * ay - y3 * b_y1) / cw;
+        G_Export_V3_Y.amplitude_Vpk[i] = sqrtf(ss * ss + ay * ay);
       }
     }
   }
 
-  memset(&G_Export_V2_Y.waveform[0], 0, 600U * sizeof(real32_T));
-  G_Export_V2_Y.waveCount = 0U;
+  ampApprox = 1.0F;
+  if ((G_Export_V3_Y.amplitude_Vpk[0] > 1.0E-6F) && (orderValue >
+       G_Export_V3_Y.amplitude_Vpk[0] * 1.005F)) {
+    ampApprox = orderValue / G_Export_V3_Y.amplitude_Vpk[0];
+  }
+
+  G_Export_V3_Y.amplitude_SettingVpk[0] = G_Export_V3_Y.amplitude_Vpk[0] *
+    ampApprox;
+  G_Export_V3_Y.amplitude_SettingVpk[1] = G_Export_V3_Y.amplitude_Vpk[1] *
+    ampApprox;
+  G_Export_V3_Y.amplitude_SettingVpk[2] = G_Export_V3_Y.amplitude_Vpk[2] *
+    ampApprox;
+  memset(&G_Export_V3_Y.waveform[0], 0, 600U * sizeof(real32_T));
+  G_Export_V3_Y.waveCount = 0U;
   ampApprox = 0.0F;
   for (i = 0; i < 4096; i++) {
-    ampApprox += G_Export_V2_B.FIR4[i];
+    ampApprox += G_Export_V3_B.FIR4[i];
   }
 
   ampApprox /= 4096.0F;
   orderValue = 0.0F;
   i = 1;
   imin = 1;
-  cs = G_Export_V2_B.FIR4[0] - ampApprox;
-  b_y1 = cs;
-  for (count = 0; count < 4096; count++) {
-    y = G_Export_V2_B.FIR4[count] - ampApprox;
+  ay = G_Export_V3_B.FIR4[0] - ampApprox;
+  b_y1 = ay;
+  for (p = 0; p < 4096; p++) {
+    y = G_Export_V3_B.FIR4[p] - ampApprox;
     orderValue += y * y;
-    if (y > cs) {
-      cs = y;
-      i = count + 1;
+    if (y > ay) {
+      ay = y;
+      i = p + 1;
     }
 
     if (y < b_y1) {
       b_y1 = y;
-      imin = count + 1;
+      imin = p + 1;
     }
   }
 
-  G_Export_V2_Y.fundamental_Hz = G_Export_V2_Y.frequency_Hz[0];
-  if (G_Export_V2_Y.frequency_Hz[0] > 0.0F) {
-    count = (int32_T)fmin(600.0, fmax(1.0, rt_roundd(2.0E+6 /
-      G_Export_V2_Y.frequency_Hz[0])) * fmin(3.0, fmax(1.0,
-      G_Export_V2_U.periods)));
-    startIndex = 0;
-    q = 0;
-    exitg1 = false;
-    while ((!exitg1) && (q <= 4094 - count)) {
-      if ((G_Export_V2_B.FIR4[q] - ampApprox <= 0.0F) && (G_Export_V2_B.FIR4[q +
-           1] - ampApprox > 0.0F)) {
-        startIndex = q + 1;
-        exitg1 = true;
-      } else {
-        q++;
+  G_Export_V3_Y.fundamental_Hz = G_Export_V3_Y.frequency_Hz[0];
+  if (G_Export_V3_Y.frequency_Hz[0] > 0.0F) {
+    p = 1;
+    if (G_Export_V3_U.periods >= 3) {
+      p = 3;
+    }
+
+    ay = 2.0E+6F / G_Export_V3_Y.frequency_Hz[0] * (real32_T)p;
+    i0 = ceil(ay);
+    if (i0 + 2.0 < 4096.0) {
+      startIndex = 1.0;
+      p = 0;
+      exitg1 = false;
+      while ((!exitg1) && (p <= (int32_T)((4096.0 - (i0 + 2.0)) - 1.0) - 1)) {
+        if ((G_Export_V3_B.FIR4[p] - ampApprox <= 0.0F) && (G_Export_V3_B.FIR4[p
+             + 1] - ampApprox > 0.0F)) {
+          startIndex = (real_T)p + 2.0;
+          exitg1 = true;
+        } else {
+          p++;
+        }
       }
-    }
 
-    for (q = 0; q < count; q++) {
-      G_Export_V2_Y.waveform[q] = G_Export_V2_B.FIR4[startIndex + q] - ampApprox;
-    }
+      for (p = 0; p < 600; p++) {
+        b_y1 = (((real32_T)p + 1.0F) - 1.0F) * ay / 599.0F + (real32_T)
+          startIndex;
+        i0 = floor(b_y1);
+        b_y1 -= (real32_T)i0;
+        if (i0 < 1.0) {
+          i0 = 1.0;
+          b_y1 = 0.0F;
+        } else if (i0 >= 4096.0) {
+          i0 = 4095.0;
+          b_y1 = 1.0F;
+        }
 
-    G_Export_V2_Y.waveCount = (uint16_T)count;
+        y3 = G_Export_V3_B.FIR4[(int32_T)i0 - 1] - ampApprox;
+        G_Export_V3_Y.waveform[p] = ((G_Export_V3_B.FIR4[(int32_T)(i0 + 1.0) - 1]
+          - ampApprox) - y3) * b_y1 + y3;
+      }
+
+      G_Export_V3_Y.waveCount = 600U;
+    }
   }
 
-  for (count = 0; count < 600; count++) {
-    G_Export_V2_Y.waveform[count] *= 0.25F;
+  for (p = 0; p < 600; p++) {
+    G_Export_V3_Y.waveform[p] *= 0.25F;
   }
 
-  G_Export_V2_Y.amplitude_Vpk[0] *= 0.25F;
-  G_Export_V2_Y.amplitude_Vpk[1] *= 0.25F;
-  G_Export_V2_Y.amplitude_Vpk[2] *= 0.25F;
-  G_Export_V2_Y.Vpp = (G_Export_V2_peak_vertex(G_Export_V2_B.FIR4, ampApprox,
-    (real_T)i, 4096.0, true) - G_Export_V2_peak_vertex(G_Export_V2_B.FIR4,
+  G_Export_V3_Y.amplitude_Vpk[0] *= 0.25F;
+  G_Export_V3_Y.amplitude_SettingVpk[0] *= 0.25F;
+  G_Export_V3_Y.amplitude_Vpk[1] *= 0.25F;
+  G_Export_V3_Y.amplitude_SettingVpk[1] *= 0.25F;
+  G_Export_V3_Y.amplitude_Vpk[2] *= 0.25F;
+  G_Export_V3_Y.amplitude_SettingVpk[2] *= 0.25F;
+  G_Export_V3_Y.Vpp = (G_Export_V3_peak_vertex(G_Export_V3_B.FIR4, ampApprox,
+    (real_T)i, 4096.0, true) - G_Export_V3_peak_vertex(G_Export_V3_B.FIR4,
     ampApprox, (real_T)imin, 4096.0, false)) * 0.25F;
-  G_Export_V2_Y.Vrms = sqrtf(orderValue / 4096.0F) * 0.25F;
+  G_Export_V3_Y.Vrms = sqrtf(orderValue / 4096.0F) * 0.25F;
 }
 
-void G_Export_V2_initialize(void)
+void G_Export_V3_initialize(void)
 {
 }
 
-void G_Export_V2_terminate(void)
+void G_Export_V3_terminate(void)
 {
 }

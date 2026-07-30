@@ -38,7 +38,10 @@ typedef enum
 typedef struct
 {
   float frequency_hz[TASK0729_COMPONENT_COUNT];
+  /* Physical component amplitudes actually present at the ADC input. */
   float amplitude_vpk[TASK0729_COMPONENT_COUNT];
+  /* Harmonic-generator setting amplitudes recovered from peak normalization. */
+  float amplitude_setting_vpk[TASK0729_COMPONENT_COUNT];
   uint8_t harmonic_order[TASK0729_COMPONENT_COUNT];
   uint8_t component_count;
   float vpp;
@@ -65,7 +68,8 @@ void Task0729_Init(void);
  *   TASK0729_MODE_QUESTION_1, _2, or _3.
  *
  * periods:
- *   1 or 3 complete periods for waveform extraction.
+ *   Selects 1 or 3 complete periods. The selected interval is resampled
+ *   after frame processing to exactly TASK0729_WAVEFORM_SAMPLES points.
  *
  * Returns 1 on success, 0 for an invalid argument.
  */

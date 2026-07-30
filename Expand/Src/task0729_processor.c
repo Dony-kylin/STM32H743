@@ -1,6 +1,6 @@
 #include "task0729_processor.h"
 
-#include "G_Export_V2.h"
+#include "G_Export_V3.h"
 
 #include <math.h>
 #include <string.h>
@@ -39,7 +39,7 @@ static uint8_t Task0729_RefineAmplitudes(
 void Task0729_Init(void)
 {
   memset(&task0729_last_result, 0, sizeof(task0729_last_result));
-  G_Export_V2_initialize();
+  G_Export_V3_initialize();
 }
 
 uint8_t Task0729_Process(
@@ -64,11 +64,11 @@ uint8_t Task0729_Process(
     return 0U;
   }
 
-  memcpy(G_Export_V2_U.adc_block, samples,
-         sizeof(G_Export_V2_U.adc_block));
-  G_Export_V2_U.mode = (uint8_T)mode;
-  G_Export_V2_U.periods = periods;
-  G_Export_V2_step();
+  memcpy(G_Export_V3_U.adc_block, samples,
+         sizeof(G_Export_V3_U.adc_block));
+  G_Export_V3_U.mode = (uint8_T)mode;
+  G_Export_V3_U.periods = periods;
+  G_Export_V3_step();
 
   {
     float output_scale = Task0729_OutputScaleCorrection();
