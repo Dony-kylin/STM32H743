@@ -1,25 +1,7 @@
-/*
- * File: G_Export_V2_data.c
- *
- * Code generated for Simulink model 'G_Export_V2'.
- *
- * Model version                  : 1.1
- * Simulink Coder version         : 24.2 (R2024b) 21-Jun-2024
- * C/C++ source code generated on : Thu Jul 30 10:48:36 2026
- *
- * Target selection: ert.tlc
- * Embedded hardware selection: ARM Compatible->ARM Cortex-M
- * Code generation objectives: Unspecified
- * Validation result: Not run
- */
-
 #include "G_Export_V2.h"
 
-/* Constant parameters (default storage) */
 const ConstP_G_Export_V2_T G_Export_V2_ConstP = {
-  /* Computed Parameter: FIR4_FILT
-   * Referenced by: '<Root>/FIR低通并4倍抽取'
-   */
+
   { -1.09383236E-5F, -0.000171520427F, 0.0013099619F, -0.003265423F,
     0.00242713792F, 0.00806980859F, -0.033233352F, 0.0768118352F, 0.184631377F,
     0.0310403127F, -0.0276700184F, 0.0126849255F, -0.00200400129F,
@@ -36,9 +18,7 @@ const ConstP_G_Export_V2_T G_Export_V2_ConstP = {
     0.0768118352F, -0.033233352F, 0.00806980859F, 0.00242713792F, -0.003265423F,
     0.0013099619F, -0.000171520427F, -1.09383236E-5F },
 
-  /* Computed Parameter: Hann_WindowSamples
-   * Referenced by: '<Root>/Hann窗'
-   */
+
   { 0.0F, 5.88561477E-7F, 2.35424454E-6F, 5.29704494E-6F, 9.41695635E-6F,
     1.47139681E-5F, 2.11880688E-5F, 2.88392421E-5F, 3.76674689E-5F,
     4.76727328E-5F, 5.88550065E-5F, 7.12142646E-5F, 8.4750478E-5F,
@@ -865,9 +845,7 @@ const ConstP_G_Export_V2_T G_Export_V2_ConstP = {
     1.47139681E-5F, 9.41695635E-6F, 5.29704494E-6F, 2.35424454E-6F,
     5.88561477E-7F, 0.0F },
 
-  /* Computed Parameter: u096FFT_TwiddleTable
-   * Referenced by: '<Root>/4096点FFT'
-   */
+
   { 1.0F, 0.999998808F, 0.999995291F, 0.99998939F, 0.999981165F, 0.999970615F,
     0.999957621F, 0.999942362F, 0.999924719F, 0.999904692F, 0.99988234F,
     0.999857664F, 0.999830604F, 0.999801159F, 0.99976939F, 0.999735296F,
@@ -1487,9 +1465,3 @@ const ConstP_G_Export_V2_T G_Export_V2_ConstP = {
     -0.00766982883F, -0.00613588467F, -0.00460192608F, -0.00306795677F,
     -0.00153398013F }
 };
-
-/*
- * File trailer for generated code.
- *
- * [EOF]
- */

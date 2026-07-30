@@ -1,18 +1,3 @@
-/*
- * File: G_Export_V2.c
- *
- * Code generated for Simulink model 'G_Export_V2'.
- *
- * Model version                  : 1.1
- * Simulink Coder version         : 24.2 (R2024b) 21-Jun-2024
- * C/C++ source code generated on : Thu Jul 30 10:48:36 2026
- *
- * Target selection: ert.tlc
- * Embedded hardware selection: ARM Compatible->ARM Cortex-M
- * Code generation objectives: Unspecified
- * Validation result: Not run
- */
-
 #include "G_Export_V2.h"
 #include "rtwtypes.h"
 #include "G_Export_V2_private.h"
@@ -20,32 +5,21 @@
 #include <string.h>
 
 #if defined(__GNUC__)
-#define TASK0729_AXI_RAM __attribute__((section(".task0729_ram"), aligned(32)))
+#define TASK0729_AXI_RAM \
+  __attribute__((section(".task0729_ram"), aligned(32)))
 #else
 #define TASK0729_AXI_RAM
 #endif
 
-/* Named constants for MATLAB Function: '<S2>/谱峰提取' */
 #define G_Export_V2_Fs                 (2.0E+6)
 #define G_Export_V2_NFFT               (4096.0)
 
-/* Block signals (default storage) */
 B_G_Export_V2_T G_Export_V2_B TASK0729_AXI_RAM;
-
-/* Block states (default storage) */
 DW_G_Export_V2_T G_Export_V2_DW;
-
-/* External inputs (root inport signals with default storage) */
 ExtU_G_Export_V2_T G_Export_V2_U TASK0729_AXI_RAM;
-
-/* External outputs (root outports fed by signals with default storage) */
 ExtY_G_Export_V2_T G_Export_V2_Y;
-
-/* Real-time model */
 static RT_MODEL_G_Export_V2_T G_Export_V2_M_;
 RT_MODEL_G_Export_V2_T *const G_Export_V2_M = &G_Export_V2_M_;
-
-/* Forward declaration for local functions */
 static real32_T G_Export_V2_peak_vertex(const real32_T x[4096], real32_T dc,
   real_T k, real_T N, boolean_T isMaximum);
 void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
@@ -57,12 +31,6 @@ void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
   int32_T nChansBy2;
   int32_T uIdx;
   int32_T yIdx;
-
-  /* S-Function (sdspfft2): '<Root>/4096点FFT' */
-  /* Bit-reverses the input data simultaneously with the interleaving operation,
-     obviating the need for explicit data reordering later.  This requires an
-     FFT with bit-reversed inputs.
-   */
   br_j = 0;
   yIdx = 0;
   uIdx = 0;
@@ -72,8 +40,6 @@ void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
       y[bit_fftLen].re = x[uIdx];
       y[bit_fftLen].im = x[uIdx + nRows];
       uIdx++;
-
-      /* Compute next bit-reversed destination index */
       bit_fftLen = nRows;
       do {
         bit_fftLen = (int32_T)((uint32_T)bit_fftLen >> 1);
@@ -90,23 +56,12 @@ void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
     br_j = 0;
   }
 
-  /* For an odd number of channels, prepare the last channel
-     for a double-length real signal algorithm.  No actual
-     interleaving is required, just a copy of the last column
-     of real data, but now placed in bit-reversed order.
-     We need to cast the real u pointer to a cDType_T pointer,
-     in order to fake the interleaving, and cut the number
-     of elements in half (half as many complex interleaved
-     elements as compared to real non-interleaved elements).
-   */
   if (((uint32_T)nChans & 1U) != 0U) {
     for (j = nRows >> 1; j - 1 > 0; j--) {
       bit_fftLen = yIdx + br_j;
       y[bit_fftLen].re = x[uIdx];
       y[bit_fftLen].im = x[uIdx + 1];
       uIdx += 2;
-
-      /* Compute next bit-reversed destination index */
       bit_fftLen = nRows >> 1;
       do {
         bit_fftLen = (int32_T)((uint32_T)bit_fftLen >> 1);
@@ -118,8 +73,6 @@ void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
     y[bit_fftLen].re = x[uIdx];
     y[bit_fftLen].im = x[uIdx + 1];
   }
-
-  /* End of S-Function (sdspfft2): '<Root>/4096点FFT' */
 }
 
 void MWDSPCG_R2DIT_TBLS_C(creal32_T y[], int32_T nChans, int32_T nRows, int32_T
@@ -133,16 +86,9 @@ void MWDSPCG_R2DIT_TBLS_C(creal32_T y[], int32_T nChans, int32_T nRows, int32_T
   int32_T nHalf;
   int32_T nQtr;
   int32_T offsetCh;
-
-  /* S-Function (sdspfft2): '<Root>/4096点FFT' */
-  /* DSP System Toolbox Decimation in Time FFT  */
-  /* Computation performed using table lookup  */
-  /* Output type: complex real32_T */
   nHalf = (fftLen >> 1) * twiddleStep;
   nQtr = nHalf >> 1;
   fwdInvFactor = isInverse ? -1 : 1;
-
-  /* For each channel */
   offsetCh = offset;
   for (iCh = 0; iCh < nChans; iCh++) {
     int32_T idelta;
@@ -150,8 +96,6 @@ void MWDSPCG_R2DIT_TBLS_C(creal32_T y[], int32_T nChans, int32_T nRows, int32_T
     int32_T kratio;
     real32_T tmp_re_tmp;
     real32_T twidRe;
-
-    /* Perform butterflies for the first stage, where no multiply is required. */
     for (ix = offsetCh; ix < (fftLen + offsetCh) - 1; ix += 2) {
       tmp_re_tmp = y[ix + 1].re;
       twidRe = y[ix + 1].im;
@@ -169,8 +113,6 @@ void MWDSPCG_R2DIT_TBLS_C(creal32_T y[], int32_T nChans, int32_T nRows, int32_T
       int32_T i2;
       int32_T istart;
       i1 = offsetCh;
-
-      /* Perform the first butterfly in each remaining stage, where no multiply is required. */
       for (ix = 0; ix < k; ix++) {
         i2 = i1 + idelta;
         tmp_re_tmp = y[i2].re;
@@ -183,8 +125,6 @@ void MWDSPCG_R2DIT_TBLS_C(creal32_T y[], int32_T nChans, int32_T nRows, int32_T
       }
 
       istart = offsetCh;
-
-      /* Perform remaining butterflies */
       for (j = kratio; j < nHalf; j += kratio) {
         real32_T twidIm;
         i1 = istart + 1;
@@ -213,11 +153,8 @@ void MWDSPCG_R2DIT_TBLS_C(creal32_T y[], int32_T nChans, int32_T nRows, int32_T
       kratio >>= 1;
     }
 
-    /* Point to next channel */
     offsetCh += nRows;
   }
-
-  /* End of S-Function (sdspfft2): '<Root>/4096点FFT' */
 }
 
 void MWDSPCG_FFT_DblLen_C(creal32_T y[], int32_T nChans, int32_T nRows, const
@@ -232,15 +169,6 @@ void MWDSPCG_FFT_DblLen_C(creal32_T y[], int32_T nChans, int32_T nRows, const
   int32_T yIdx;
   real32_T tempOut0Im;
   real32_T tempOut0Re;
-
-  /* S-Function (sdspfft2): '<Root>/4096点FFT' */
-  /* In-place "double-length" data recovery
-     Table-based mem-optimized twiddle computation
-
-     Used to recover linear-ordered length-N point complex FFT result
-     from a linear-ordered complex length-N/2 point FFT, performed
-     on N interleaved real values.
-   */
   N2 = nRows >> 1;
   N4 = N2 >> 1;
   W4 = N4 * twiddleStep;
@@ -301,8 +229,6 @@ void MWDSPCG_FFT_DblLen_C(creal32_T y[], int32_T nChans, int32_T nRows, const
     y[temp2Re_tmp_0].im = -y[tmp].im;
     tempOut0Re_tmp += twiddleStep;
   }
-
-  /* End of S-Function (sdspfft2): '<Root>/4096点FFT' */
 }
 
 real32_T rt_hypotf(real32_T u0, real32_T u1)
@@ -343,7 +269,6 @@ real_T rt_roundd(real_T u)
   return y;
 }
 
-/* Function for MATLAB Function: '<S1>/计算测量值' */
 static real32_T G_Export_V2_peak_vertex(const real32_T x[4096], real32_T dc,
   real_T k, real_T N, boolean_T isMaximum)
 {
@@ -378,7 +303,6 @@ static real32_T G_Export_V2_peak_vertex(const real32_T x[4096], real32_T dc,
   return yv;
 }
 
-/* Model step function */
 void G_Export_V2_step(void)
 {
   int32_T count;
@@ -401,19 +325,11 @@ void G_Export_V2_step(void)
   real32_T y;
   real32_T y3;
   boolean_T exitg1;
-
-  /* Gain: '<Root>/Q15转ADC电压' incorporates:
-   *  DataTypeConversion: '<Root>/ADC转single'
-   *  Inport: '<Root>/adc_block'
-   */
   for (i = 0; i < 16384; i++) {
     G_Export_V2_B.Q15ADC[i] = 7.62939453E-5F * (real32_T)
       G_Export_V2_U.adc_block[i];
   }
 
-  /* End of Gain: '<Root>/Q15转ADC电压' */
-
-  /* S-Function (sdspfirdn2): '<Root>/FIR低通并4倍抽取' */
   i = 0;
   imin = 0;
   while (imin < 16384) {
@@ -453,57 +369,27 @@ void G_Export_V2_step(void)
     }
   }
 
-  /* End of S-Function (sdspfirdn2): '<Root>/FIR低通并4倍抽取' */
-
-  /* S-Function (sdspwindow2): '<Root>/Hann窗' */
   for (i = 0; i < 4096; i++) {
     G_Export_V2_B.Hann[i] = G_Export_V2_B.FIR4[i] *
       G_Export_V2_ConstP.Hann_WindowSamples[i];
   }
 
-  /* End of S-Function (sdspwindow2): '<Root>/Hann窗' */
-
-  /* S-Function (sdspfft2): '<Root>/4096点FFT' */
   MWDSPCG_FFT_Interleave_R2BR_S(&G_Export_V2_B.Hann[0U], &G_Export_V2_B.u096FFT
     [0U], 1, 4096);
   MWDSPCG_R2DIT_TBLS_C(&G_Export_V2_B.u096FFT[0U], 1, 4096, 2048, 0,
                        &G_Export_V2_ConstP.u096FFT_TwiddleTable[0U], 2, false);
   MWDSPCG_FFT_DblLen_C(&G_Export_V2_B.u096FFT[0U], 1, 4096,
                        &G_Export_V2_ConstP.u096FFT_TwiddleTable[0U], 1);
-
-  /* MATLAB Function: '<S2>/谱峰提取' */
   G_Export_V2_Y.component_count = 0U;
   G_Export_V2_Y.frequency_Hz[0] = 0.0F;
   G_Export_V2_Y.amplitude_Vpk[0] = 0.0F;
-
-  /* Outport: '<Root>/harmonic_order' incorporates:
-   *  MATLAB Function: '<S2>/谱峰提取'
-   */
   G_Export_V2_Y.harmonic_order[0] = 0U;
-
-  /* MATLAB Function: '<S2>/谱峰提取' */
   G_Export_V2_Y.frequency_Hz[1] = 0.0F;
   G_Export_V2_Y.amplitude_Vpk[1] = 0.0F;
-
-  /* Outport: '<Root>/harmonic_order' incorporates:
-   *  MATLAB Function: '<S2>/谱峰提取'
-   */
   G_Export_V2_Y.harmonic_order[1] = 0U;
-
-  /* MATLAB Function: '<S2>/谱峰提取' */
   G_Export_V2_Y.frequency_Hz[2] = 0.0F;
   G_Export_V2_Y.amplitude_Vpk[2] = 0.0F;
-
-  /* Outport: '<Root>/harmonic_order' incorporates:
-   *  MATLAB Function: '<S2>/谱峰提取'
-   */
   G_Export_V2_Y.harmonic_order[2] = 0U;
-
-  /* MATLAB Function: '<S2>/谱峰提取' incorporates:
-   *  Inport: '<Root>/mode'
-   *  Outport: '<Root>/harmonic_order'
-   *  S-Function (sdspfft2): '<Root>/4096点FFT'
-   */
   for (i = 0; i < 4096; i++) {
     G_Export_V2_B.Hann[i] = rt_hypotf(G_Export_V2_B.u096FFT[i].re,
       G_Export_V2_B.u096FFT[i].im);
@@ -663,15 +549,8 @@ void G_Export_V2_step(void)
     }
   }
 
-  /* MATLAB Function: '<S1>/计算测量值' */
   memset(&G_Export_V2_Y.waveform[0], 0, 600U * sizeof(real32_T));
-
-  /* Outport: '<Root>/waveCount' incorporates:
-   *  MATLAB Function: '<S1>/计算测量值'
-   */
   G_Export_V2_Y.waveCount = 0U;
-
-  /* MATLAB Function: '<S1>/计算测量值' */
   ampApprox = 0.0F;
   for (i = 0; i < 4096; i++) {
     ampApprox += G_Export_V2_B.FIR4[i];
@@ -697,15 +576,7 @@ void G_Export_V2_step(void)
     }
   }
 
-  /* Outport: '<Root>/fundamental_Hz' incorporates:
-   *  MATLAB Function: '<S1>/计算测量值'
-   */
   G_Export_V2_Y.fundamental_Hz = G_Export_V2_Y.frequency_Hz[0];
-
-  /* MATLAB Function: '<S1>/计算测量值' incorporates:
-   *  Constant: '<S1>/处理采样率'
-   *  Inport: '<Root>/periods'
-   */
   if (G_Export_V2_Y.frequency_Hz[0] > 0.0F) {
     count = (int32_T)fmin(600.0, fmax(1.0, rt_roundd(2.0E+6 /
       G_Export_V2_Y.frequency_Hz[0])) * fmin(3.0, fmax(1.0,
@@ -727,58 +598,26 @@ void G_Export_V2_step(void)
       G_Export_V2_Y.waveform[q] = G_Export_V2_B.FIR4[startIndex + q] - ampApprox;
     }
 
-    /* Outport: '<Root>/waveCount' incorporates:
-     *  Constant: '<S1>/处理采样率'
-     *  Inport: '<Root>/periods'
-     */
     G_Export_V2_Y.waveCount = (uint16_T)count;
   }
 
-  /* Outport: '<Root>/waveform' incorporates:
-   *  Gain: '<Root>/恢复真实电压_waveform'
-   */
   for (count = 0; count < 600; count++) {
     G_Export_V2_Y.waveform[count] *= 0.25F;
   }
 
-  /* End of Outport: '<Root>/waveform' */
-
-  /* Outport: '<Root>/amplitude_Vpk' incorporates:
-   *  Gain: '<Root>/恢复真实电压_amplitude_Vpk'
-   */
   G_Export_V2_Y.amplitude_Vpk[0] *= 0.25F;
   G_Export_V2_Y.amplitude_Vpk[1] *= 0.25F;
   G_Export_V2_Y.amplitude_Vpk[2] *= 0.25F;
-
-  /* Outport: '<Root>/Vpp' incorporates:
-   *  Gain: '<Root>/恢复真实电压_Vpp'
-   *  MATLAB Function: '<S1>/计算测量值'
-   */
   G_Export_V2_Y.Vpp = (G_Export_V2_peak_vertex(G_Export_V2_B.FIR4, ampApprox,
     (real_T)i, 4096.0, true) - G_Export_V2_peak_vertex(G_Export_V2_B.FIR4,
     ampApprox, (real_T)imin, 4096.0, false)) * 0.25F;
-
-  /* Outport: '<Root>/Vrms' incorporates:
-   *  Gain: '<Root>/恢复真实电压_Vrms'
-   *  MATLAB Function: '<S1>/计算测量值'
-   */
   G_Export_V2_Y.Vrms = sqrtf(orderValue / 4096.0F) * 0.25F;
 }
 
-/* Model initialize function */
 void G_Export_V2_initialize(void)
 {
-  /* (no initialization code required) */
 }
 
-/* Model terminate function */
 void G_Export_V2_terminate(void)
 {
-  /* (no terminate code required) */
 }
-
-/*
- * File trailer for generated code.
- *
- * [EOF]
- */
