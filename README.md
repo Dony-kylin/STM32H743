@@ -1,6 +1,6 @@
 # STM32H743 + AD9220 周期信号测量与频谱分析
 
-本工程使用 STM32H743 读取 AD9220 的 12 位并行输出，完成周期信号采集、幅值/频率测量、16384 点 FFT、谐波分析和 THD 计算，并通过 USART1 输出结果。
+本工程使用 STM32H743 读取 AD9220 的 12 位并行输出，完成周期信号采集、幅值/频率测量、Simulink 生成算法的频谱分析和 THD 计算，并通过 USART1 输出结果。
 
 当前版本已经移除 LCD 的运行路径：固件不初始化 LCD、不刷新屏幕，Makefile 也不再编译 LCD 驱动文件。工程中仍保留部分历史 LCD 源文件，便于追溯旧版本，但它们不参与当前固件。
 
@@ -14,9 +14,10 @@
 | 采样率 | 固定 8 MSPS |
 | 每块采样点数 | 16384 |
 | 单块采集时间 | 2.048 ms |
-| FFT 点数 | 16384 |
-| FFT 频率分辨率 | 488.28125 Hz |
-| 基波搜索范围 | 1 kHz 至略低于 4 MHz |
+| Simulink FFT | 4096 点（8 MSPS 输入经 4 倍抽取后为 2 MSPS） |
+| Simulink 频率分辨率 | 488.28125 Hz |
+| 频率分量个数 | 最多 3 个，由 Simulink 接口按题目要求输出 |
+| Simulink 基波搜索范围 | 10 kHz 至 500 kHz（当前使用题目 3 模式） |
 | 串口 | USART1，2,000,000 baud，8N1 |
 | 配置保存 | 只有收到 `SAVE` 时写入 Flash |
 
@@ -33,10 +34,21 @@ flowchart LR
     DMAE --> BUF["D2 SRAM 采样缓冲"]
     DMAD --> BUF
     BUF --> PROCESS["坏点修复 / 测量 / FFT"]
-    PROCESS --> UART["USART1"]
+    PROCESS --> SIMULINK["Task0729_Process<br/>FIR/抽取/4096 FFT"]
+    SIMULINK --> UART["USART1"]
 ```
 
-TIM4_CH4 在 PD15 上连续输出 8 MHz。AD9220 在时钟上升沿锁存输入，DMA 在后续 TIM4 更新事件读取 GPIO，避免 CPU 以 8 MHz 频率进入中断。每次 16384 点采样完成后，程序修复异常点并进行一次分析。
+TIM4_CH4 在 PD15 上连续输出 8 MHz。AD9220 在时钟上升沿锁存输入，DMA 在后续 TIM4 更新事件读取 GPIO，避免 CPU 以 8 MHz 频率进入中断。每次 16384 点采样完成后，程序先修复异常点，再调用一次 `Task0729_Process()`；Simulink 代码在函数内部完成 64 阶 FIR、4 倍抽取和 4096 点 FFT。
+
+Simulink 生成代码和稳定接口位于：
+
+```text
+Expand/Generated/Task0729/
+Expand/Inc/task0729_processor.h
+Expand/Src/task0729_processor.c
+```
+
+`Task0729_Process()` 是阻塞式块处理函数，只能在采样块完成后的主循环中调用，不能放进 DMA 中断。
 
 ## AD9220 引脚
 
@@ -98,20 +110,20 @@ signed_sample = (raw_code - 2048) << 4;
 - 单个坏点使用前后有效点的均值修复；连续坏点使用线性插值。
 - `GLITCH_FIX` 和 `BAD` 用于观察坏点修复数量。
 
-## FFT 与谐波
+## Simulink 频谱与谐波
 
-FFT 使用 16384 点 Hann 窗，并在变换前去除直流分量。频率分辨率为：
+自动摘要（`FFT ON`）使用刚引入的 `Task0729_Process()`。它接收 16384 个 8 MSPS 输入点，经 4 倍抽取后对 4096 点数据加 Hann 窗并进行 FFT，因此：
 
 ```text
-df = fs / N = 8,000,000 / 16,384 = 488.28125 Hz
+df = 2,000,000 / 4,096 = 488.28125 Hz
 ```
 
-程序搜索 1 kHz 至略低于 Nyquist 频率的峰值，将其作为基波 `f0`，并输出 H1 至 H10。只输出低于 Nyquist 的谐波；例如 1 MHz 基波最多能稳定输出 H1、H2、H3。
+摘要输出 Simulink 返回的最多 3 个频率分量（按频率排序），以及 `VPP`、`RMS`、基波峰值、基波频率和 THD。分量会按实际谐波次数显示，例如 `H1/H3/H5`，不要求连续。`WAVE` 是生成接口返回的波形点数（最多 600 点）。
 
-THD 的定义为：
+自动摘要的 THD 按 Simulink 返回且能归入基波整数倍的高次分量计算：
 
 ```text
-THD = sqrt(A2² + A3² + ... + A10²) / A1 × 100%
+THD = sqrt(ΣAh²) / A1 × 100%
 ```
 
 其中 `A1` 是基波峰值，日志里的 `A1` 和各个 `Hn` 单位都是 V。
@@ -127,14 +139,12 @@ THD = sqrt(A2² + A3² + ... + A10²) / A1 × 100%
 | `RATE 8000000` | 检查固定采样率；当前只接受 8000000 |
 | `STREAM ON` | 开启周期性测量/FFT摘要输出 |
 | `STREAM OFF` | 关闭周期性摘要输出 |
-| `FFT ON` | 每个采样块执行 FFT |
+| `FFT ON` | 每个采样块调用 `Task0729_Process()` 并输出摘要 |
 | `FFT OFF` | 停止自动 FFT，仅保留时域测量 |
 | `DUMP` | 准备输出下一块 16384 点电压数据 |
-| `SPECTRUM` | 输出下一块完整 FFT 频谱 CSV |
-| `FFT FULL` | `SPECTRUM` 的兼容别名 |
 | `SAVE` | 将当前串口配置写入 Flash |
 
-以下旧版屏幕命令已经删除，不再接受：
+以下旧版屏幕和完整频谱命令已经删除，不再接受：
 
 ```text
 RUN
@@ -146,6 +156,8 @@ CENTER
 TIME
 DEC
 REFRESH
+SPECTRUM
+FFT FULL
 ```
 
 ### DUMP
@@ -178,7 +190,7 @@ DUMP
 典型输出：
 
 ```text
-#FFT seq=117 n=16384 fs=8000000Hz df=488.281Hz f0=500000.000Hz A1=0.063916V THD=19.0311% BAD=0 T=45044us
+#FFT seq=117 n=4096 fs=2000000Hz df=488.281Hz f0=500000.000Hz A1=0.063916V VPP=0.128000V RMS=0.045255V THD=19.0311% WAVE=600 BAD=0 T=45044us
 H1=500000.000Hz/0.063916V H2=1000000.000Hz/0.003207V H3=1500000.000Hz/0.005118V
 ```
 
@@ -192,22 +204,19 @@ H1=500000.000Hz/0.063916V H2=1000000.000Hz/0.003207V H3=1500000.000Hz/0.005118V
 | `df` | 频率分辨率 |
 | `f0` | 识别出的基波频率 |
 | `A1` | 基波峰值 |
-| `THD` | H2...H10 相对基波的总失真 |
+| `VPP` | Simulink 输出的峰峰值 |
+| `RMS` | Simulink 输出的有效值 |
+| `THD` | Simulink 返回的高次谐波相对基波的总失真 |
+| `WAVE` | Simulink 输出波形点数 |
 | `BAD` | 本块修复的异常点数 |
-| `T` | FFT 计算耗时 |
-
-`SPECTRUM` 输出完整频谱时，数据范围为 `0...Nyquist`，共 8193 个频点，输出结束标志为：
-
-```text
-#SPECTRUM END
-```
+| `T` | `Task0729_Process()` 的 DWT 实测耗时，单位 µs |
 
 ## STATUS 诊断
 
 典型状态：
 
 ```text
-#SCOPE RATE=8000000Hz FS=8000000Hz SAMPLES=16384 OTR=0 GLITCH_FIX=0 CAP_ERR=0 MODE=TIM4_PWM_DMA DRV_ERR=0 DONE=3 ERR=0x0 STAGE=0 PROG=16384 CLK=L TIMEOUT=0 DT=30/30 STREAM=ON FFT=ON BAD=0 FFT_ERR=0 FFT_STAGE=0 FFT_REQ=0 CFG=SAVED
+#SCOPE RATE=8000000Hz FS=8000000Hz SAMPLES=16384 OTR=0 GLITCH_FIX=0 CAP_ERR=0 MODE=TIM4_PWM_DMA DRV_ERR=0 ICACHE=ON DONE=3 ERR=0x0 STAGE=0 PROG=16384 CLK=L TIMEOUT=0 DT=30/30 STREAM=ON FFT=ON BAD=0 FFT_ERR=0 CFG=SAVED
 ```
 
 重点字段：
@@ -220,6 +229,7 @@ H1=500000.000Hz/0.063916V H2=1000000.000Hz/0.003207V H3=1500000.000Hz/0.005118V
 | `OTR` | AD9220 超量程累计次数 |
 | `GLITCH_FIX` | 软件尖峰修复累计次数 |
 | `CAP_ERR` | 采集启动或完成错误累计 |
+| `ICACHE` | Cortex-M7 指令缓存状态，应为 `ON` |
 | `DRV_ERR` | DMA 驱动错误累计 |
 | `DONE` | DMA 完成标志位，Stream0 为 bit0、Stream1 为 bit1 |
 | `ERR` | DMA 错误码 |
@@ -232,8 +242,6 @@ H1=500000.000Hz/0.063916V H2=1000000.000Hz/0.003207V H3=1500000.000Hz/0.005118V
 | `FFT` | 自动 FFT 开关 |
 | `BAD` | 修复的坏点累计 |
 | `FFT_ERR` | FFT 失败累计 |
-| `FFT_STAGE` | FFT 当前处理阶段 |
-| `FFT_REQ` | 是否有完整频谱请求等待发送 |
 | `CFG` | Flash 配置状态 |
 
 排查顺序建议：
@@ -295,7 +303,7 @@ STM32_Programmer_CLI -c port=SWD -w build/STM32H743.hex -v -rst
 
 ```text
 #BOOT UART OK
-#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=16384 CLEAN=2450mV
+#READY MODE=TIM4_PWM_DMA RATE=8000000Hz PROC=2000000Hz FFT=4096 DECIM=4 SIMULINK=1 ICACHE=ON
 ```
 
 ## 中断与工程目录
@@ -315,7 +323,7 @@ Core/Src/main.c                  初始化和主循环
 Core/Src/scope_app.c             采集调度、命令解析和串口输出
 Core/Src/usart.c                 USART1 配置
 Expand/Src/ad9220.c              TIM4、GPIO DMA 和采样数据组装
-Expand/Src/ad9220_spectrum.c     FFT、基波、谐波和 THD
+Expand/Src/ad9220_spectrum.c     采样坏点检测与修复
 Expand/Src/ad7606_scope.c        波形历史缓存和时域测量
 Expand/Src/ad7606_scope_store.c  Flash 配置保存
 STM32H743XX_FLASH.ld             Flash/RAM 链接布局
