@@ -104,6 +104,14 @@ int main(void)
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
 
+  /*
+   * The generated Simulink processor performs a 4096-point FFT and a
+   * decimation/filtering pass for every completed 16384-sample block.
+   * Keep its instructions in the Cortex-M7 instruction cache; the DMA
+   * capture path does not execute from this cache.
+   */
+  SCB_EnableICache();
+
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */

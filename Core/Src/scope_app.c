@@ -53,7 +53,6 @@ typedef struct
 #define AD9220_UART_BUFFER_SIZE       96U
 #define AD9220_DUMP_BUFFER_SIZE       512U
 #define AD9220_SPECTRUM_UART_BUFFER_SIZE 512U
-#define AD9220_SPECTRUM_REQUEST_TIMEOUT_MS 3000U
 #define AD9220_UART_MEASURE_PERIOD_MS 5000U
 #define AD9220_FULL_SCALE_MV          2500U
 #define AD9220_FULL_SCALE_100UV       25000L
@@ -566,8 +565,6 @@ static volatile uint8_t AdcDumpReady;
 static volatile uint32_t AdcDumpRequestTick;
 static volatile uint8_t AdcSpectrumEnabled = 1U;
 static volatile uint8_t AdcSpectrumReady;
-static volatile uint8_t AdcSpectrumFullRequest;
-static volatile uint32_t AdcSpectrumFullRequestTick;
 static volatile uint32_t AdcSpectrumErrorCount;
 static volatile uint32_t AdcBadSampleCount;
 static volatile uint8_t UartStreamEnabled = 1U;
@@ -589,7 +586,6 @@ static void ScopeApp_ProcessCompletedCapture(void);
 static void UART_SendMeasurements(void);
 static void UART_SendDump(void);
 static void UART_SendSpectrumSummary(void);
-static void UART_SendFullSpectrum(void);
 static void UART_PollScopeCommands(void);
 static void UART_HandleScopeCommand(char *command);
 static void UART_SendText(const char *text);
@@ -600,6 +596,7 @@ static size_t UART_StatusAppendHex(size_t offset, uint32_t value);
 static uint8_t UART_SaveScopeConfig(void);
 static void UART_Acknowledge(const char *ok_message);
 static void AD9220_ApplyStartupScopeConfig(void);
+static uint32_t Task0729_VoltsToMicrovolts(float volts);
 static void Task0729_ConvertToSpectrum(
     const Task0729_Result *source,
     uint32_t bad_sample_count,
@@ -622,7 +619,8 @@ void ScopeApp_Init(void)
 
   HAL_Delay(20U);
   UART_SendText(
-      "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=4096 DECIM=4 SIMULINK=1\r\n");
+      "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz "
+      "PROC=2000000Hz FFT=4096 DECIM=4 SIMULINK=1 ICACHE=ON\r\n");
 
   AD9220_PrepareAcquisition();
 }
@@ -633,22 +631,6 @@ void ScopeApp_Process(void)
 
   UART_PollScopeCommands();
   now = HAL_GetTick();
-
-  if ((AdcSpectrumFullRequest != 0U) &&
-      ((now - AdcSpectrumFullRequestTick) >=
-       AD9220_SPECTRUM_REQUEST_TIMEOUT_MS))
-  {
-    char error[96];
-
-    AdcSpectrumFullRequest = 0U;
-    (void)snprintf(
-        error, sizeof(error),
-        "#ERR SPECTRUM timeout stage=%lu fftErr=%lu samples=%lu\r\n",
-        (unsigned long)AD9220_SpectrumGetStage(),
-        (unsigned long)AdcSpectrumErrorCount,
-        (unsigned long)AdcFrameCount);
-    UART_SendText(error);
-  }
 
   if ((AdcDumpRequest != 0U) &&
       ((now - AdcDumpRequestTick) >= 1000U))
@@ -669,11 +651,6 @@ void ScopeApp_Process(void)
     if (UartStreamEnabled != 0U)
     {
       UART_SendSpectrumSummary();
-    }
-    if (AdcSpectrumFullRequest != 0U)
-    {
-      UART_SendFullSpectrum();
-      AdcSpectrumFullRequest = 0U;
     }
     AdcSpectrumReady = 0U;
     return;
@@ -740,7 +717,7 @@ static void ScopeApp_ProcessCompletedCapture(void)
 {
   AD9220_Frame frame;
   AD9220_SpectrumResult spectrum_result;
-  uint32_t analysis_start_ms;
+  uint32_t analysis_start_cycles;
   uint32_t copied;
   uint32_t bad_sample_count;
 
@@ -763,29 +740,21 @@ static void ScopeApp_ProcessCompletedCapture(void)
 
   if (AdcSpectrumEnabled != 0U)
   {
-    /*
-     * Keep the legacy 16384-bin spectrum only when a full spectrum dump was
-     * explicitly requested. Normal measurements use the generated Simulink
-     * processor and avoid running two FFTs for every capture.
-     */
-    if (AdcSpectrumFullRequest != 0U)
-    {
-      AD9220_SpectrumResult full_spectrum_result;
-
-      (void)AD9220_SpectrumAnalyze(
-          AdcCaptureSamples, copied, AD9220_GetSampleRateHz(),
-          bad_sample_count, &full_spectrum_result);
-    }
-
-    analysis_start_ms = HAL_GetTick();
+    analysis_start_cycles = DWT->CYCCNT;
     if (Task0729_Process(AdcCaptureSamples,
                          TASK0729_MODE_QUESTION_3,
                          1U,
                          &TaskProcessorResult) != 0U)
     {
+      uint32_t elapsed_cycles = DWT->CYCCNT - analysis_start_cycles;
+      uint32_t cycles_per_us = SystemCoreClock / 1000000U;
+      uint32_t analysis_time_us =
+          (cycles_per_us != 0U) ?
+          ((elapsed_cycles + (cycles_per_us / 2U)) / cycles_per_us) : 0U;
+
       Task0729_ConvertToSpectrum(
           &TaskProcessorResult, bad_sample_count,
-          (HAL_GetTick() - analysis_start_ms) * 1000U,
+          analysis_time_us,
           &spectrum_result);
       AdcSpectrumResult = spectrum_result;
       __DMB();
@@ -841,7 +810,12 @@ static void Task0729_ConvertToSpectrum(
 
   memset(destination, 0, sizeof(*destination));
   destination->sequence = ++TaskProcessorSequence;
-  destination->sample_rate_hz = AD9220_SAMPLE_RATE_HZ;
+  /*
+   * Task0729 receives 8 MSPS data, then decimates by four before its
+   * 4096-point FFT. Report the effective FFT sample rate so fs/N agrees
+   * with the generated model's 488.28125 Hz bin spacing.
+   */
+  destination->sample_rate_hz = AD9220_SAMPLE_RATE_HZ / 4U;
   destination->fft_size = 4096U;
   destination->bin_width_millihz = 488281U;
   destination->bad_sample_count = bad_sample_count;
@@ -881,6 +855,19 @@ static void Task0729_ConvertToSpectrum(
         sqrtf(harmonic_square_sum) / fundamental_vpk * 1000000.0F + 0.5F);
   }
   destination->valid = (source->component_count != 0U) ? 1U : 0U;
+}
+
+static uint32_t Task0729_VoltsToMicrovolts(float volts)
+{
+  if (!(volts > 0.0F))
+  {
+    return 0U;
+  }
+  if (volts >= 4294.0F)
+  {
+    return UINT32_MAX;
+  }
+  return (uint32_t)(volts * 1000000.0F + 0.5F);
 }
 
 void AD9220_CaptureCompleteCallback(void)
@@ -958,8 +945,7 @@ static void UART_HandleScopeCommand(char *command)
     UART_SendText(
         "#CMD RATE 8000000 (effective sample rate)\r\n"
         "#CMD DUMP (one 16384-point CSV waveform)\r\n"
-        "#CMD FFT ON/OFF (16384-point H1..H10 and THD)\r\n"
-        "#CMD SPECTRUM (one full 0..Nyquist FFT CSV)\r\n"
+        "#CMD FFT ON/OFF (Simulink 4096-point, up to 3 components)\r\n"
         "#CMD STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
   }
   else if (strcmp(cursor, "STATUS") == 0)
@@ -999,23 +985,7 @@ static void UART_HandleScopeCommand(char *command)
   else if (strcmp(cursor, "FFT OFF") == 0)
   {
     AdcSpectrumEnabled = 0U;
-    AdcSpectrumFullRequest = 0U;
     UART_SendText("#OK FFT OFF\r\n");
-  }
-  else if ((strcmp(cursor, "SPECTRUM") == 0) ||
-           (strcmp(cursor, "FFT FULL") == 0))
-  {
-    if (AdcSpectrumFullRequest != 0U)
-    {
-      UART_SendText("#ERR SPECTRUM BUSY\r\n");
-    }
-    else
-    {
-      AdcSpectrumEnabled = 1U;
-      AdcSpectrumFullRequest = 1U;
-      AdcSpectrumFullRequestTick = HAL_GetTick();
-      UART_SendText("#OK SPECTRUM ARMED\r\n");
-    }
   }
   else if (strcmp(cursor, "STREAM ON") == 0)
   {
@@ -1099,6 +1069,9 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendUnsigned(offset, AdcReadErrorCount);
   offset = UART_StatusAppendText(offset, " MODE=TIM4_PWM_DMA DRV_ERR=");
   offset = UART_StatusAppendUnsigned(offset, dma_error_count);
+  offset = UART_StatusAppendText(offset, " ICACHE=");
+  offset = UART_StatusAppendText(
+      offset, ((SCB->CCR & SCB_CCR_IC_Msk) != 0U) ? "ON" : "OFF");
   offset = UART_StatusAppendText(offset, " DONE=");
   offset = UART_StatusAppendUnsigned(offset, dma_done_mask);
   offset = UART_StatusAppendText(offset, " ERR=0x");
@@ -1123,12 +1096,6 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendUnsigned(offset, AdcBadSampleCount);
   offset = UART_StatusAppendText(offset, " FFT_ERR=");
   offset = UART_StatusAppendUnsigned(offset, AdcSpectrumErrorCount);
-  offset = UART_StatusAppendText(offset, " FFT_STAGE=");
-  offset = UART_StatusAppendUnsigned(
-      offset, AD9220_SpectrumGetStage());
-  offset = UART_StatusAppendText(offset, " FFT_REQ=");
-  offset = UART_StatusAppendUnsigned(
-      offset, (uint32_t)AdcSpectrumFullRequest);
   offset = UART_StatusAppendText(offset, " CFG=");
   offset = UART_StatusAppendText(
       offset, (ScopeConfigDirty != 0U) ? "DIRTY\r\n" : "SAVED\r\n");
@@ -1207,6 +1174,20 @@ static void UART_Acknowledge(const char *ok_message)
 {
   ScopeConfigDirty = 1U;
   UART_SendText(ok_message);
+}
+
+static void AD9220_ApplyStartupScopeConfig(void)
+{
+  /*
+   * LCD/timebase controls are no longer part of the running application.
+   * Keep acquisition enabled and feed every 8 MSPS sample into the
+   * measurement/Simulink processing path. The saved STREAM flag is applied
+   * separately in ScopeApp_Init().
+   */
+  ScopeStartupSampleRateHz = AD9220_SAMPLE_RATE_HZ;
+  (void)AD7606_ScopeSetChannel(1U);
+  (void)AD7606_ScopeSetDecimation(1U);
+  AD7606_ScopeSetRunning(1U);
 }
 
 static void AD9220_PrepareAcquisition(void)
@@ -1316,6 +1297,8 @@ static void UART_SendDump(void)
 static void UART_SendSpectrumSummary(void)
 {
   AD9220_SpectrumResult result = AdcSpectrumResult;
+  uint32_t vpp_uv = Task0729_VoltsToMicrovolts(TaskProcessorResult.vpp);
+  uint32_t vrms_uv = Task0729_VoltsToMicrovolts(TaskProcessorResult.vrms);
   char buffer[AD9220_SPECTRUM_UART_BUFFER_SIZE];
   uint32_t used = 0U;
   int written;
@@ -1336,8 +1319,9 @@ static void UART_SendSpectrumSummary(void)
   written = snprintf(
       buffer, sizeof(buffer),
       "#FFT seq=%lu n=%lu fs=%luHz df=%lu.%03luHz "
-      "f0=%lu.%03luHz A1=%lu.%06luV THD=%lu.%04lu%% "
-      "BAD=%lu T=%luus\r\n",
+      "f0=%lu.%03luHz A1=%lu.%06luV "
+      "VPP=%lu.%06luV RMS=%lu.%06luV "
+      "THD=%lu.%04lu%% WAVE=%u BAD=%lu T=%luus\r\n",
       (unsigned long)result.sequence,
       (unsigned long)result.fft_size,
       (unsigned long)result.sample_rate_hz,
@@ -1347,8 +1331,13 @@ static void UART_SendSpectrumSummary(void)
       (unsigned long)(result.fundamental_millihz % 1000U),
       (unsigned long)(result.fundamental_amplitude_uv / 1000000U),
       (unsigned long)(result.fundamental_amplitude_uv % 1000000U),
+      (unsigned long)(vpp_uv / 1000000U),
+      (unsigned long)(vpp_uv % 1000000U),
+      (unsigned long)(vrms_uv / 1000000U),
+      (unsigned long)(vrms_uv % 1000000U),
       (unsigned long)(result.thd_ppm / 10000U),
       (unsigned long)(result.thd_ppm % 10000U),
+      (unsigned int)TaskProcessorResult.waveform_count,
       (unsigned long)result.bad_sample_count,
       (unsigned long)result.analysis_time_us);
   if ((written < 0) || ((uint32_t)written >= sizeof(buffer)))
@@ -1368,7 +1357,7 @@ static void UART_SendSpectrumSummary(void)
 
     if (frequency_millihz == 0U)
     {
-      break;
+      continue;
     }
 
     written = snprintf(
@@ -1379,8 +1368,7 @@ static void UART_SendSpectrumSummary(void)
         (unsigned long)(frequency_millihz % 1000U),
         (unsigned long)(amplitude_uv / 1000000U),
         (unsigned long)(amplitude_uv % 1000000U),
-        ((harmonic + 1U) == AD9220_SPECTRUM_HARMONIC_COUNT) ?
-            "\r\n" : " ");
+        " ");
     if ((written < 0) ||
         ((uint32_t)written >= (sizeof(buffer) - used)))
     {
@@ -1404,73 +1392,6 @@ static void UART_SendSpectrumSummary(void)
     buffer[used] = '\0';
   }
   UART_SendText(buffer);
-}
-
-static void UART_SendFullSpectrum(void)
-{
-  AD9220_SpectrumResult result = AdcSpectrumResult;
-  char buffer[AD9220_DUMP_BUFFER_SIZE];
-  uint32_t used = 0U;
-
-  (void)snprintf(
-      buffer, sizeof(buffer),
-      "#SPECTRUM BEGIN seq=%lu bins=%lu fs=%luHz "
-      "window=HANN dc=removed "
-      "columns=bin,frequency_Hz,amplitude_Vpeak\r\n",
-      (unsigned long)result.sequence,
-      (unsigned long)AD9220_SPECTRUM_BIN_COUNT,
-      (unsigned long)result.sample_rate_hz);
-  UART_SendText(buffer);
-
-  for (uint32_t bin = 0U;
-       bin < AD9220_SPECTRUM_BIN_COUNT; ++bin)
-  {
-    uint64_t frequency_millihz =
-        ((uint64_t)bin * result.sample_rate_hz * 1000U) /
-        AD9220_SPECTRUM_FFT_SIZE;
-    uint32_t amplitude_uv =
-        AD9220_SpectrumGetBinMagnitudeUv(bin) / 4U;
-    int written;
-
-    if (used > (sizeof(buffer) - 64U))
-    {
-      if (HAL_UART_Transmit(&huart1, (const uint8_t *)buffer,
-                            (uint16_t)used, 200U) != HAL_OK)
-      {
-        ++AdcUartErrorCount;
-        UART_SendText("#SPECTRUM ABORT UART\r\n");
-        return;
-      }
-      used = 0U;
-    }
-
-    written = snprintf(
-        &buffer[used], sizeof(buffer) - used,
-        "%lu,%lu.%03lu,%lu.%06lu\r\n",
-        (unsigned long)bin,
-        (unsigned long)(frequency_millihz / 1000U),
-        (unsigned long)(frequency_millihz % 1000U),
-        (unsigned long)(amplitude_uv / 1000000U),
-        (unsigned long)(amplitude_uv % 1000000U));
-    if ((written < 0) ||
-        ((uint32_t)written >= (sizeof(buffer) - used)))
-    {
-      ++AdcUartErrorCount;
-      UART_SendText("#SPECTRUM ABORT FORMAT\r\n");
-      return;
-    }
-    used += (uint32_t)written;
-  }
-
-  if ((used != 0U) &&
-      (HAL_UART_Transmit(&huart1, (const uint8_t *)buffer,
-                         (uint16_t)used, 200U) != HAL_OK))
-  {
-    ++AdcUartErrorCount;
-    UART_SendText("#SPECTRUM ABORT UART\r\n");
-    return;
-  }
-  UART_SendText("#SPECTRUM END\r\n");
 }
 
 /* USER CODE END Application */
