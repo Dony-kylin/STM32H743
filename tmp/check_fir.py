@@ -305,6 +305,38 @@ if __name__ == "__main__":
             print(f"  {label:>6s}  联合拟合: {amp_joint:.6f} Vpk  "
                   f"(误差 {err:+.4f}%)")
 
+        # --- 能量归一化信号源测试 ---
+        print(f"\n  --- 能量归一化信号源 (匹配真实信号发生器) ---")
+        print(f"  真实信号发生器采用 RMS 能量归一化，而非简单幅度叠加。")
+        print(f"  添加谐波后，基波幅值会因总能量守恒而降低。")
+
+        # 信号发生器参数
+        amp0 = 1.0      # 设定的基波幅值
+        ha = 0.5        # a次谐波相对幅值
+        hb = 0.55       # b次谐波相对幅值
+
+        # 能量归一化系数
+        K = amp0 / math.sqrt(amp0**2 + ha**2 + hb**2)
+        total_rms_before = math.sqrt(amp0**2/2 + ha**2/2 + hb**2/2)
+        total_rms_after = math.sqrt((amp0*K)**2/2 + (ha*K)**2/2 + (hb*K)**2/2)
+
+        print(f"\n  归一化系数 K = A0 / sqrt(A0^2 + ha^2 + hb^2)")
+        print(f"                = {amp0} / sqrt({amp0}^2 + {ha}^2 + {hb}^2)")
+        print(f"                = {K:.4f}")
+        print(f"  归一化前 RMS = {total_rms_before:.4f} V")
+        print(f"  归一化后 RMS = {total_rms_after:.4f} V")
+        print(f"\n  各分量幅值变化:")
+        print(f"  {'分量':>8s}  {'归一化前':>10s}  {'归一化后':>10s}  {'×0.25 后':>10s}")
+        print(f"  {'-' * 42}")
+        print(f"  {'基波':>8s}  {amp0:>10.4f}  {amp0*K:>10.4f}  {amp0*K*0.25:>10.4f}")
+        print(f"  {'a次谐波':>8s}  {ha:>10.4f}  {ha*K:>10.4f}  {ha*K*0.25:>10.4f}")
+        print(f"  {'b次谐波':>8s}  {hb:>10.4f}  {hb*K:>10.4f}  {hb*K*0.25:>10.4f}")
+
+        # 与实测对比
+        print(f"\n  实测基波 (×0.25后) = 0.199916 V")
+        print(f"  预测基波 (×0.25后) = {amp0*K*0.25:.6f} V")
+        print(f"  匹配度 = {amp0*K*0.25/0.199916*100:.2f}%")
+
     else:
         print("\n  (需要 numpy 进行谐波拟合仿真, pip install numpy)")
 
