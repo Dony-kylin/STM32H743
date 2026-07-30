@@ -19,18 +19,24 @@
 #include <math.h>
 #include <string.h>
 
+#if defined(__GNUC__)
+#define TASK0729_AXI_RAM __attribute__((section(".task0729_ram"), aligned(32)))
+#else
+#define TASK0729_AXI_RAM
+#endif
+
 /* Named constants for MATLAB Function: '<S2>/Æ×·åÌáÈ¡' */
 #define G_Export_V2_Fs                 (2.0E+6)
 #define G_Export_V2_NFFT               (4096.0)
 
 /* Block signals (default storage) */
-B_G_Export_V2_T G_Export_V2_B;
+B_G_Export_V2_T G_Export_V2_B TASK0729_AXI_RAM;
 
 /* Block states (default storage) */
 DW_G_Export_V2_T G_Export_V2_DW;
 
 /* External inputs (root inport signals with default storage) */
-ExtU_G_Export_V2_T G_Export_V2_U;
+ExtU_G_Export_V2_T G_Export_V2_U TASK0729_AXI_RAM;
 
 /* External outputs (root outports fed by signals with default storage) */
 ExtY_G_Export_V2_T G_Export_V2_Y;
