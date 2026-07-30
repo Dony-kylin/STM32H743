@@ -199,6 +199,18 @@ SECTIONS
   } >RAM
 
   /*
+   * Simulink-generated FFT work arrays. These arrays are CPU-only and are
+   * placed in AXI SRAM so they do not exhaust the 128 KB DTCM.
+   */
+  .task0729_ram (NOLOAD) :
+  {
+    . = ALIGN(32);
+    *(.task0729_ram)
+    *(.task0729_ram*)
+    . = ALIGN(32);
+  } >RAM
+
+  /*
    * DMA1 cannot access DTCM. AD9220 GPIO double buffers live in D2 SRAM.
    */
   .ad9220_dma_ram (NOLOAD) :

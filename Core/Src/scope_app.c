@@ -27,8 +27,10 @@
 #include "ad9220_spectrum.h"
 #include "ad7606_scope.h"
 #include "ad7606_scope_store.h"
+#include "task0729_processor.h"
 #include "usart.h"
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 /* USER CODE END Includes */
@@ -98,6 +100,8 @@ static uint8_t ScopeConfigDirty;
 static int16_t AdcCaptureSamples[AD9220_CAPTURE_SAMPLES]
     AD9220_CAPTURE_RAM;
 static AD9220_SpectrumResult AdcSpectrumResult;
+static Task0729_Result TaskProcessorResult;
+static uint32_t TaskProcessorSequence;
 static char UartStatusBuffer[512];
 
 /* Task_Uart: CubeMX 不会自动生成，放在 USER CODE 区防止被清除 */
@@ -140,6 +144,11 @@ static size_t UART_StatusAppendHex(size_t offset, uint32_t value);
 static uint8_t UART_SaveScopeConfig(void);
 static void UART_Acknowledge(const char *ok_message);
 static void AD9220_ApplyStartupScopeConfig(void);
+static void Task0729_ConvertToSpectrum(
+    const Task0729_Result *source,
+    uint32_t bad_sample_count,
+    uint32_t analysis_time_us,
+    AD9220_SpectrumResult *destination);
 void StartTask_Uart(void *argument);
 void AD9220_CaptureCompleteCallback(void);
 
@@ -570,6 +579,8 @@ static uint8_t ScopeConfigDirty;
 static int16_t AdcCaptureSamples[AD9220_CAPTURE_SAMPLES]
     AD9220_CAPTURE_RAM;
 static AD9220_SpectrumResult AdcSpectrumResult;
+static Task0729_Result TaskProcessorResult;
+static uint32_t TaskProcessorSequence;
 static char UartStatusBuffer[512];
 static uint32_t AdcLastMeasurementTick;
 static void AD9220_PrepareAcquisition(void);
@@ -588,6 +599,12 @@ static size_t UART_StatusAppendUnsigned(size_t offset, uint32_t value);
 static size_t UART_StatusAppendHex(size_t offset, uint32_t value);
 static uint8_t UART_SaveScopeConfig(void);
 static void UART_Acknowledge(const char *ok_message);
+static void AD9220_ApplyStartupScopeConfig(void);
+static void Task0729_ConvertToSpectrum(
+    const Task0729_Result *source,
+    uint32_t bad_sample_count,
+    uint32_t analysis_time_us,
+    AD9220_SpectrumResult *destination);
 
 void ScopeApp_Init(void)
 {
@@ -600,9 +617,12 @@ void ScopeApp_Init(void)
   {
     UartStreamEnabled = ScopeStartupStreamEnabled;
   }
+  AD9220_ApplyStartupScopeConfig();
+  Task0729_Init();
+
   HAL_Delay(20U);
   UART_SendText(
-      "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=16384 CLEAN=2450mV\r\n");
+      "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=4096 DECIM=4 SIMULINK=1\r\n");
 
   AD9220_PrepareAcquisition();
 }
@@ -720,6 +740,7 @@ static void ScopeApp_ProcessCompletedCapture(void)
 {
   AD9220_Frame frame;
   AD9220_SpectrumResult spectrum_result;
+  uint32_t analysis_start_ms;
   uint32_t copied;
   uint32_t bad_sample_count;
 
@@ -742,11 +763,30 @@ static void ScopeApp_ProcessCompletedCapture(void)
 
   if (AdcSpectrumEnabled != 0U)
   {
-    if (AD9220_SpectrumAnalyze(AdcCaptureSamples, copied,
-                               AD9220_GetSampleRateHz(),
-                               bad_sample_count,
-                               &spectrum_result) != 0U)
+    /*
+     * Keep the legacy 16384-bin spectrum only when a full spectrum dump was
+     * explicitly requested. Normal measurements use the generated Simulink
+     * processor and avoid running two FFTs for every capture.
+     */
+    if (AdcSpectrumFullRequest != 0U)
     {
+      AD9220_SpectrumResult full_spectrum_result;
+
+      (void)AD9220_SpectrumAnalyze(
+          AdcCaptureSamples, copied, AD9220_GetSampleRateHz(),
+          bad_sample_count, &full_spectrum_result);
+    }
+
+    analysis_start_ms = HAL_GetTick();
+    if (Task0729_Process(AdcCaptureSamples,
+                         TASK0729_MODE_QUESTION_3,
+                         1U,
+                         &TaskProcessorResult) != 0U)
+    {
+      Task0729_ConvertToSpectrum(
+          &TaskProcessorResult, bad_sample_count,
+          (HAL_GetTick() - analysis_start_ms) * 1000U,
+          &spectrum_result);
       AdcSpectrumResult = spectrum_result;
       __DMB();
       AdcSpectrumReady = 1U;
@@ -787,6 +827,60 @@ static void ScopeApp_ProcessCompletedCapture(void)
     AdcDumpRequest = 0U;
     AdcDumpReady = 1U;
   }
+}
+
+static void Task0729_ConvertToSpectrum(
+    const Task0729_Result *source,
+    uint32_t bad_sample_count,
+    uint32_t analysis_time_us,
+    AD9220_SpectrumResult *destination)
+{
+  float fundamental_vpk = 0.0F;
+  float harmonic_square_sum = 0.0F;
+  uint32_t index;
+
+  memset(destination, 0, sizeof(*destination));
+  destination->sequence = ++TaskProcessorSequence;
+  destination->sample_rate_hz = AD9220_SAMPLE_RATE_HZ;
+  destination->fft_size = 4096U;
+  destination->bin_width_millihz = 488281U;
+  destination->bad_sample_count = bad_sample_count;
+  destination->analysis_time_us = analysis_time_us;
+  destination->fundamental_millihz =
+      (uint32_t)(source->fundamental_hz * 1000.0F + 0.5F);
+
+  for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
+  {
+    uint32_t order = source->harmonic_order[index];
+    float amplitude = source->amplitude_vpk[index];
+
+    if ((order >= 1U) && (order <= AD9220_SPECTRUM_HARMONIC_COUNT))
+    {
+      uint32_t harmonic_index = order - 1U;
+
+      destination->harmonic_frequency_millihz[harmonic_index] =
+          (uint32_t)(source->frequency_hz[index] * 1000.0F + 0.5F);
+      destination->harmonic_amplitude_uv[harmonic_index] =
+          (uint32_t)(amplitude * 1000000.0F + 0.5F);
+      if (order == 1U)
+      {
+        fundamental_vpk = amplitude;
+        destination->fundamental_amplitude_uv =
+            destination->harmonic_amplitude_uv[harmonic_index];
+      }
+      else
+      {
+        harmonic_square_sum += amplitude * amplitude;
+      }
+    }
+  }
+
+  if (fundamental_vpk > 0.0F)
+  {
+    destination->thd_ppm = (uint32_t)(
+        sqrtf(harmonic_square_sum) / fundamental_vpk * 1000000.0F + 0.5F);
+  }
+  destination->valid = (source->component_count != 0U) ? 1U : 0U;
 }
 
 void AD9220_CaptureCompleteCallback(void)
@@ -1335,7 +1429,7 @@ static void UART_SendFullSpectrum(void)
         ((uint64_t)bin * result.sample_rate_hz * 1000U) /
         AD9220_SPECTRUM_FFT_SIZE;
     uint32_t amplitude_uv =
-        AD9220_SpectrumGetBinMagnitudeUv(bin);
+        AD9220_SpectrumGetBinMagnitudeUv(bin) / 4U;
     int written;
 
     if (used > (sizeof(buffer) - 64U))

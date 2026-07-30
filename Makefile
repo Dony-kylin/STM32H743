@@ -78,6 +78,9 @@ Core/Src/syscalls.c \
 Core/Src/scope_app.c \
 Expand/Src/ad9220.c \
 Expand/Src/ad9220_spectrum.c \
+Expand/Src/task0729_processor.c \
+Expand/Generated/Task0729/G_Export_V2.c \
+Expand/Generated/Task0729/G_Export_V2_data.c \
 Expand/Src/ad7606_scope.c \
 Expand/Src/ad7606_scope_store.c \
 Core/Src/stm32h7xx_hal_timebase_tim.c
@@ -149,7 +152,8 @@ C_INCLUDES =  \
 -IDrivers/STM32H7xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32H7xx/Include \
 -IDrivers/CMSIS/Include \
--IExpand/Inc
+-IExpand/Inc \
+-IExpand/Generated/Task0729
 
 
 # compile gcc flags
