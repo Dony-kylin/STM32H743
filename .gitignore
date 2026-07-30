@@ -36,3 +36,6 @@ CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 compile_commands.json
+
+# Host-side temporary test executables
+tmp/*.exe
