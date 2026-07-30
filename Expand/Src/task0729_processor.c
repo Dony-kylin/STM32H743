@@ -46,6 +46,8 @@ uint8_t Task0729_Process(
         G_Export_V3_Y.frequency_Hz[index];
     task0729_last_result.amplitude_vpk[index] =
         G_Export_V3_Y.amplitude_Vpk[index];
+    task0729_last_result.amplitude_setting_vpk[index] =
+        G_Export_V3_Y.amplitude_SettingVpk[index];
     task0729_last_result.harmonic_order[index] =
         G_Export_V3_Y.harmonic_order[index];
   }

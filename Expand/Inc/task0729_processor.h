@@ -21,7 +21,10 @@ typedef enum
 typedef struct
 {
   float frequency_hz[TASK0729_COMPONENT_COUNT];
+  /* Physical component amplitudes actually present at the ADC input. */
   float amplitude_vpk[TASK0729_COMPONENT_COUNT];
+  /* Harmonic-generator setting amplitudes recovered from peak normalization. */
+  float amplitude_setting_vpk[TASK0729_COMPONENT_COUNT];
   uint8_t harmonic_order[TASK0729_COMPONENT_COUNT];
   uint8_t component_count;
   float vpp;

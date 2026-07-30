@@ -24,6 +24,14 @@
 处理器没有 `scale` 输入，也不会读取仿真信号源内部状态。所有结果都在
 一帧 ADC 数据采集完成后计算。
 
+频谱同时提供两组幅值：
+
+- ADC端口实际存在的物理幅值；
+- 按“合成波形峰值受基波设定Vpeak限制”的发生器规则恢复出的设置幅值。
+
+恢复系数由采样帧最大绝对峰值与实测基波幅值之比得到。比值不超过
+`1.005` 时按1处理，避免FIR启动瞬态对纯基波产生伪校正。
+
 应用层只使用 `task0729_processor.h`，不要直接访问
 `G_Export_V3_U` 或 `G_Export_V3_Y`。
 
@@ -144,6 +152,7 @@ typedef struct
 {
     float frequency_hz[3];
     float amplitude_vpk[3];
+    float amplitude_setting_vpk[3];
     uint8_t harmonic_order[3];
     uint8_t component_count;
     float vpp;
@@ -157,7 +166,8 @@ typedef struct
 | 字段 | 单位 | 说明 |
 |---|---|---|
 | `frequency_hz[i]` | Hz | 第i个有效频率分量，按频率从低到高排列 |
-| `amplitude_vpk[i]` | Vpeak | 第i个分量的真实输入电压峰值 |
+| `amplitude_vpk[i]` | Vpeak | ADC实际输入中第i个分量的物理幅值 |
+| `amplitude_setting_vpk[i]` | Vpeak | 恢复的信号发生器界面设置幅值 |
 | `harmonic_order[i]` | 无 | 1表示基波，2表示二次谐波 |
 | `component_count` | 个 | 有效频率分量数，最大为3 |
 | `vpp` | V | 被测信号峰峰值 |
@@ -171,10 +181,11 @@ typedef struct
 ```c
 for (uint8_t i = 0U; i < result.component_count; ++i)
 {
-    printf("H%u: %.1f Hz, %.6f Vpk\r\n",
+    printf("H%u: %.1f Hz, actual %.6f Vpk, setting %.6f Vpk\r\n",
            result.harmonic_order[i],
            result.frequency_hz[i],
-           result.amplitude_vpk[i]);
+           result.amplitude_vpk[i],
+           result.amplitude_setting_vpk[i]);
 }
 ```
 

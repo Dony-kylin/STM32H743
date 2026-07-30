@@ -297,9 +297,10 @@ void G_Export_V3_step(void)
   real32_T bestBin[3];
   real32_T bestScore[3];
   real32_T ampApprox;
+  real32_T ay;
   real32_T b_y1;
   real32_T c;
-  real32_T cs;
+  real32_T cw;
   real32_T den;
   real32_T orderValue;
   real32_T r;
@@ -394,18 +395,18 @@ void G_Export_V3_step(void)
     ampApprox = G_Export_V3_B.Hann[imin + 21];
     orderValue = G_Export_V3_B.Hann[imin + 20];
     if (ampApprox >= orderValue) {
-      cs = G_Export_V3_B.Hann[imin + 22];
-      if (ampApprox > cs) {
+      ay = G_Export_V3_B.Hann[imin + 22];
+      if (ampApprox > ay) {
         b_y1 = logf(fmaxf(orderValue, 1.0E-30F));
-        y3 = logf(fmaxf(cs, 1.0E-30F));
+        y3 = logf(fmaxf(ay, 1.0E-30F));
         den = (b_y1 - 2.0F * logf(fmaxf(ampApprox, 1.0E-30F))) + y3;
-        ss = 0.0F;
+        cw = 0.0F;
         if (fabsf(den) > 1.0E-20F) {
-          ss = (b_y1 - y3) * 0.5F / den;
+          cw = (b_y1 - y3) * 0.5F / den;
         }
 
-        b_y1 = fminf(0.5F, fmaxf(-0.5F, ss));
-        ampApprox = ((orderValue + ampApprox) + cs) * 2.0F / 4095.0F;
+        b_y1 = fminf(0.5F, fmaxf(-0.5F, cw));
+        ampApprox = ((orderValue + ampApprox) + ay) * 2.0F / 4095.0F;
         if (ampApprox >= 0.004F) {
           p = 0;
           exitg1 = false;
@@ -491,28 +492,36 @@ void G_Export_V3_step(void)
   }
 
   ampApprox /= 4096.0F;
+  orderValue = 0.0F;
+  for (p = 0; p < 4096; p++) {
+    ay = fabsf(G_Export_V3_B.FIR4[p] - ampApprox);
+    if (ay > orderValue) {
+      orderValue = ay;
+    }
+  }
+
   for (i = 0; i < 3; i++) {
-    orderValue = G_Export_V3_Y.frequency_Hz[i];
-    if (orderValue > 0.0F) {
-      orderValue = 6.28318548F * orderValue / 2.0E+6F;
-      den = cosf(orderValue);
-      sw = sinf(orderValue);
+    ay = G_Export_V3_Y.frequency_Hz[i];
+    if (ay > 0.0F) {
+      ay = 6.28318548F * ay / 2.0E+6F;
+      cw = cosf(ay);
+      sw = sinf(ay);
       c = 1.0F;
       sn = 0.0F;
-      orderValue = 0.0F;
+      ay = 0.0F;
       ss = 0.0F;
-      cs = 0.0F;
       b_y1 = 0.0F;
       y3 = 0.0F;
+      den = 0.0F;
       for (p = 0; p < 4096; p++) {
         y = G_Export_V3_B.FIR4[p] - ampApprox;
-        orderValue += c * c;
+        ay += c * c;
         ss += sn * sn;
-        cs += c * sn;
-        b_y1 += y * c;
-        y3 += y * sn;
-        y = c * den - sn * sw;
-        sn = sn * den + c * sw;
+        b_y1 += c * sn;
+        y3 += y * c;
+        den += y * sn;
+        y = c * cw - sn * sw;
+        sn = sn * cw + c * sw;
         c = y;
         if (((uint32_T)(p + 1) & 255U) == 0U) {
           r = sqrtf(y * y + sn * sn);
@@ -521,15 +530,27 @@ void G_Export_V3_step(void)
         }
       }
 
-      den = orderValue * ss - cs * cs;
-      if (fabsf(den) > 1.0E-20F) {
-        ss = (b_y1 * ss - y3 * cs) / den;
-        orderValue = (y3 * orderValue - b_y1 * cs) / den;
-        G_Export_V3_Y.amplitude_Vpk[i] = sqrtf(ss * ss + orderValue * orderValue);
+      cw = ay * ss - b_y1 * b_y1;
+      if (fabsf(cw) > 1.0E-20F) {
+        ss = (y3 * ss - den * b_y1) / cw;
+        ay = (den * ay - y3 * b_y1) / cw;
+        G_Export_V3_Y.amplitude_Vpk[i] = sqrtf(ss * ss + ay * ay);
       }
     }
   }
 
+  ampApprox = 1.0F;
+  if ((G_Export_V3_Y.amplitude_Vpk[0] > 1.0E-6F) && (orderValue >
+       G_Export_V3_Y.amplitude_Vpk[0] * 1.005F)) {
+    ampApprox = orderValue / G_Export_V3_Y.amplitude_Vpk[0];
+  }
+
+  G_Export_V3_Y.amplitude_SettingVpk[0] = G_Export_V3_Y.amplitude_Vpk[0] *
+    ampApprox;
+  G_Export_V3_Y.amplitude_SettingVpk[1] = G_Export_V3_Y.amplitude_Vpk[1] *
+    ampApprox;
+  G_Export_V3_Y.amplitude_SettingVpk[2] = G_Export_V3_Y.amplitude_Vpk[2] *
+    ampApprox;
   memset(&G_Export_V3_Y.waveform[0], 0, 600U * sizeof(real32_T));
   G_Export_V3_Y.waveCount = 0U;
   ampApprox = 0.0F;
@@ -541,13 +562,13 @@ void G_Export_V3_step(void)
   orderValue = 0.0F;
   i = 1;
   imin = 1;
-  cs = G_Export_V3_B.FIR4[0] - ampApprox;
-  b_y1 = cs;
+  ay = G_Export_V3_B.FIR4[0] - ampApprox;
+  b_y1 = ay;
   for (p = 0; p < 4096; p++) {
     y = G_Export_V3_B.FIR4[p] - ampApprox;
     orderValue += y * y;
-    if (y > cs) {
-      cs = y;
+    if (y > ay) {
+      ay = y;
       i = p + 1;
     }
 
@@ -564,8 +585,8 @@ void G_Export_V3_step(void)
       p = 3;
     }
 
-    cs = 2.0E+6F / G_Export_V3_Y.frequency_Hz[0] * (real32_T)p;
-    i0 = ceil(cs);
+    ay = 2.0E+6F / G_Export_V3_Y.frequency_Hz[0] * (real32_T)p;
+    i0 = ceil(ay);
     if (i0 + 2.0 < 4096.0) {
       startIndex = 1.0;
       p = 0;
@@ -581,7 +602,7 @@ void G_Export_V3_step(void)
       }
 
       for (p = 0; p < 600; p++) {
-        b_y1 = (((real32_T)p + 1.0F) - 1.0F) * cs / 599.0F + (real32_T)
+        b_y1 = (((real32_T)p + 1.0F) - 1.0F) * ay / 599.0F + (real32_T)
           startIndex;
         i0 = floor(b_y1);
         b_y1 -= (real32_T)i0;
@@ -607,8 +628,11 @@ void G_Export_V3_step(void)
   }
 
   G_Export_V3_Y.amplitude_Vpk[0] *= 0.25F;
+  G_Export_V3_Y.amplitude_SettingVpk[0] *= 0.25F;
   G_Export_V3_Y.amplitude_Vpk[1] *= 0.25F;
+  G_Export_V3_Y.amplitude_SettingVpk[1] *= 0.25F;
   G_Export_V3_Y.amplitude_Vpk[2] *= 0.25F;
+  G_Export_V3_Y.amplitude_SettingVpk[2] *= 0.25F;
   G_Export_V3_Y.Vpp = (G_Export_V3_peak_vertex(G_Export_V3_B.FIR4, ampApprox,
     (real_T)i, 4096.0, true) - G_Export_V3_peak_vertex(G_Export_V3_B.FIR4,
     ampApprox, (real_T)imin, 4096.0, false)) * 0.25F;

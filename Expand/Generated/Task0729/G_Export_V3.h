@@ -50,6 +50,7 @@ typedef struct {
   real32_T fundamental_Hz;
   real32_T waveform[600];
   uint16_T waveCount;
+  real32_T amplitude_SettingVpk[3];
 } ExtY_G_Export_V3_T;
 
 struct tag_RTM_G_Export_V3_T {
