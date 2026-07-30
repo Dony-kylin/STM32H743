@@ -620,7 +620,7 @@ void ScopeApp_Init(void)
   HAL_Delay(20U);
   UART_SendText(
       "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz "
-      "PROC=2000000Hz FFT=4096 DECIM=4 SIMULINK=1 ICACHE=ON\r\n");
+      "PROC=8000000Hz FFT=16384 DECIM=1 SIMULINK=1 ICACHE=ON\r\n");
 
   AD9220_PrepareAcquisition();
 }
@@ -811,12 +811,12 @@ static void Task0729_ConvertToSpectrum(
   memset(destination, 0, sizeof(*destination));
   destination->sequence = ++TaskProcessorSequence;
   /*
-   * Task0729 receives 8 MSPS data, then decimates by four before its
-   * 4096-point FFT. Report the effective FFT sample rate so fs/N agrees
-   * with the generated model's 488.28125 Hz bin spacing.
+   * The no-decimation test processor uses the complete 8 MSPS,
+   * 16384-sample frame.  The observation time and 488.28125 Hz bin
+   * spacing are unchanged from the former 2 MSPS / 4096-point path.
    */
-  destination->sample_rate_hz = AD9220_SAMPLE_RATE_HZ / 4U;
-  destination->fft_size = 4096U;
+  destination->sample_rate_hz = AD9220_SAMPLE_RATE_HZ;
+  destination->fft_size = 16384U;
   destination->bin_width_millihz = 488281U;
   destination->bad_sample_count = bad_sample_count;
   destination->analysis_time_us = analysis_time_us;
@@ -945,7 +945,7 @@ static void UART_HandleScopeCommand(char *command)
     UART_SendText(
         "#CMD RATE 8000000 (effective sample rate)\r\n"
         "#CMD DUMP (one 16384-point CSV waveform)\r\n"
-        "#CMD FFT ON/OFF (Simulink 4096-point, up to 3 components)\r\n"
+        "#CMD FFT ON/OFF (Simulink 16384-point, up to 3 components)\r\n"
         "#CMD STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
   }
   else if (strcmp(cursor, "STATUS") == 0)
@@ -1227,6 +1227,29 @@ static void UART_SendMeasurements(void)
                    (unsigned long)(measurements.amplitude_mv % 1000U));
   }
   UART_SendText(buffer);
+
+  for (uint32_t index = 0U;
+       index < TaskProcessorResult.component_count;
+       ++index)
+  {
+    uint32_t actual_uv = Task0729_VoltsToMicrovolts(
+        TaskProcessorResult.amplitude_vpk[index]);
+    uint32_t setting_uv = Task0729_VoltsToMicrovolts(
+        TaskProcessorResult.amplitude_setting_vpk[index]);
+    uint32_t frequency_hz = (uint32_t)(
+        TaskProcessorResult.frequency_hz[index] + 0.5F);
+
+    (void)snprintf(
+        buffer, sizeof(buffer),
+        "#COMP H%u F=%luHz ACT=%lu.%03lumV SET=%lu.%03lumV\r\n",
+        (unsigned int)TaskProcessorResult.harmonic_order[index],
+        (unsigned long)frequency_hz,
+        (unsigned long)(actual_uv / 1000U),
+        (unsigned long)(actual_uv % 1000U),
+        (unsigned long)(setting_uv / 1000U),
+        (unsigned long)(setting_uv % 1000U));
+    UART_SendText(buffer);
+  }
 }
 
 static void UART_SendDump(void)

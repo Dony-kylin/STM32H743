@@ -16,22 +16,21 @@
 #endif
 
 typedef struct {
-  real32_T Q15ADC[16384];
-  creal32_T u096FFT[4096];
-  real32_T FIR4[4096];
-  real32_T Hann[4096];
+  creal32_T u096FFT[16384];
+  real32_T FIR_[16384];
+  real32_T Hann[16384];
 } B_G_Export_V3_T;
 
 typedef struct {
-  real32_T FIR4_Sums[16];
-  real32_T FIR4_StatesBuff[15];
-  int32_T FIR4_PhaseIdx;
+  real32_T FIR__Sums[64];
+  real32_T FIR__StatesBuff[63];
+  int32_T FIR__PhaseIdx;
 } DW_G_Export_V3_T;
 
 typedef struct {
-  real32_T FIR4_FILT[64];
-  real32_T Hann_WindowSamples[4096];
-  real32_T u096FFT_TwiddleTable[3072];
+  real32_T FIR__FILT[64];
+  real32_T Hann_WindowSamples[16384];
+  real32_T u096FFT_TwiddleTable[12288];
 } ConstP_G_Export_V3_T;
 
 typedef struct {

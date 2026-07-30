@@ -4,6 +4,9 @@
 #include <math.h>
 #include <string.h>
 
+#define G_Export_V3_Fs                 (8.0E+6)
+#define G_Export_V3_NFFT               (16384.0)
+
 #if defined(__GNUC__)
 #define TASK0729_AXI_RAM \
   __attribute__((section(".task0729_ram"), aligned(32)))
@@ -11,16 +14,13 @@
 #define TASK0729_AXI_RAM
 #endif
 
-#define G_Export_V3_Fs                 (2.0E+6)
-#define G_Export_V3_NFFT               (4096.0)
-
 B_G_Export_V3_T G_Export_V3_B TASK0729_AXI_RAM;
 DW_G_Export_V3_T G_Export_V3_DW;
 ExtU_G_Export_V3_T G_Export_V3_U TASK0729_AXI_RAM;
 ExtY_G_Export_V3_T G_Export_V3_Y;
 static RT_MODEL_G_Export_V3_T G_Export_V3_M_;
 RT_MODEL_G_Export_V3_T *const G_Export_V3_M = &G_Export_V3_M_;
-static real32_T G_Export_V3_peak_vertex(const real32_T x[4096], real32_T dc,
+static real32_T G_Export_V3_peak_vertex(const real32_T x[16384], real32_T dc,
   real_T k, real_T N, boolean_T isMaximum);
 void MWDSPCG_FFT_Interleave_R2BR_S(const real32_T x[], creal32_T y[], int32_T
   nChans, int32_T nRows)
@@ -251,7 +251,7 @@ real32_T rt_hypotf(real32_T u0, real32_T u1)
   return y;
 }
 
-static real32_T G_Export_V3_peak_vertex(const real32_T x[4096], real32_T dc,
+static real32_T G_Export_V3_peak_vertex(const real32_T x[16384], real32_T dc,
   real_T k, real_T N, boolean_T isMaximum)
 {
   real_T km;
@@ -309,59 +309,60 @@ void G_Export_V3_step(void)
   real32_T sw;
   real32_T y;
   real32_T y3;
+  uint32_T peakCount;
+  uint32_T qY;
   boolean_T exitg1;
   for (i = 0; i < 16384; i++) {
-    G_Export_V3_B.Q15ADC[i] = 7.62939453E-5F * (real32_T)
-      G_Export_V3_U.adc_block[i];
+    G_Export_V3_B.Hann[i] = 7.62939453E-5F * (real32_T)G_Export_V3_U.adc_block[i];
   }
 
   i = 0;
   imin = 0;
   while (imin < 16384) {
-    if (G_Export_V3_DW.FIR4_PhaseIdx == 3) {
-      for (p = 0; p < 16; p++) {
-        G_Export_V3_DW.FIR4_Sums[p] = G_Export_V3_ConstP.FIR4_FILT[p + 48] *
-          G_Export_V3_B.Q15ADC[imin];
+    if (G_Export_V3_DW.FIR__PhaseIdx == 0) {
+      for (p = 0; p < 64; p++) {
+        G_Export_V3_DW.FIR__Sums[p] = G_Export_V3_ConstP.FIR__FILT[p] *
+          G_Export_V3_B.Hann[imin];
       }
 
       imin++;
-      G_Export_V3_DW.FIR4_PhaseIdx = 2;
+      G_Export_V3_DW.FIR__PhaseIdx = -1;
     }
 
-    while ((imin < 16384) && (G_Export_V3_DW.FIR4_PhaseIdx > -1)) {
-      for (p = 0; p < 16; p++) {
-        G_Export_V3_DW.FIR4_Sums[p] += G_Export_V3_ConstP.FIR4_FILT
-          [(G_Export_V3_DW.FIR4_PhaseIdx << 4) + p] * G_Export_V3_B.Q15ADC[imin];
+    while ((imin < 16384) && (G_Export_V3_DW.FIR__PhaseIdx > -1)) {
+      for (p = 0; p < 64; p++) {
+        G_Export_V3_DW.FIR__Sums[p] += G_Export_V3_ConstP.FIR__FILT
+          [(G_Export_V3_DW.FIR__PhaseIdx << 6) + p] * G_Export_V3_B.Hann[imin];
       }
 
       imin++;
-      G_Export_V3_DW.FIR4_PhaseIdx--;
+      G_Export_V3_DW.FIR__PhaseIdx--;
     }
 
-    if (G_Export_V3_DW.FIR4_PhaseIdx == -1) {
-      G_Export_V3_B.FIR4[i] = G_Export_V3_DW.FIR4_StatesBuff[0] +
-        G_Export_V3_DW.FIR4_Sums[0];
+    if (G_Export_V3_DW.FIR__PhaseIdx == -1) {
+      G_Export_V3_B.FIR_[i] = G_Export_V3_DW.FIR__StatesBuff[0] +
+        G_Export_V3_DW.FIR__Sums[0];
       i++;
-      for (p = 0; p < 14; p++) {
-        G_Export_V3_DW.FIR4_StatesBuff[p] = G_Export_V3_DW.FIR4_StatesBuff[p + 1]
-          + G_Export_V3_DW.FIR4_Sums[p + 1];
+      for (p = 0; p < 62; p++) {
+        G_Export_V3_DW.FIR__StatesBuff[p] = G_Export_V3_DW.FIR__StatesBuff[p + 1]
+          + G_Export_V3_DW.FIR__Sums[p + 1];
       }
 
-      G_Export_V3_DW.FIR4_StatesBuff[14] = G_Export_V3_DW.FIR4_Sums[15];
-      G_Export_V3_DW.FIR4_PhaseIdx = 3;
+      G_Export_V3_DW.FIR__StatesBuff[62] = G_Export_V3_DW.FIR__Sums[63];
+      G_Export_V3_DW.FIR__PhaseIdx = 0;
     }
   }
 
-  for (i = 0; i < 4096; i++) {
-    G_Export_V3_B.Hann[i] = G_Export_V3_B.FIR4[i] *
+  for (i = 0; i < 16384; i++) {
+    G_Export_V3_B.Hann[i] = G_Export_V3_B.FIR_[i] *
       G_Export_V3_ConstP.Hann_WindowSamples[i];
   }
 
   MWDSPCG_FFT_Interleave_R2BR_S(&G_Export_V3_B.Hann[0U], &G_Export_V3_B.u096FFT
-    [0U], 1, 4096);
-  MWDSPCG_R2DIT_TBLS_C(&G_Export_V3_B.u096FFT[0U], 1, 4096, 2048, 0,
+    [0U], 1, 16384);
+  MWDSPCG_R2DIT_TBLS_C(&G_Export_V3_B.u096FFT[0U], 1, 16384, 8192, 0,
                        &G_Export_V3_ConstP.u096FFT_TwiddleTable[0U], 2, false);
-  MWDSPCG_FFT_DblLen_C(&G_Export_V3_B.u096FFT[0U], 1, 4096,
+  MWDSPCG_FFT_DblLen_C(&G_Export_V3_B.u096FFT[0U], 1, 16384,
                        &G_Export_V3_ConstP.u096FFT_TwiddleTable[0U], 1);
   G_Export_V3_Y.component_count = 0U;
   G_Export_V3_Y.frequency_Hz[0] = 0.0F;
@@ -373,7 +374,7 @@ void G_Export_V3_step(void)
   G_Export_V3_Y.frequency_Hz[2] = 0.0F;
   G_Export_V3_Y.amplitude_Vpk[2] = 0.0F;
   G_Export_V3_Y.harmonic_order[2] = 0U;
-  for (i = 0; i < 4096; i++) {
+  for (i = 0; i < 16384; i++) {
     G_Export_V3_B.Hann[i] = rt_hypotf(G_Export_V3_B.u096FFT[i].re,
       G_Export_V3_B.u096FFT[i].im);
   }
@@ -406,7 +407,7 @@ void G_Export_V3_step(void)
         }
 
         b_y1 = fminf(0.5F, fmaxf(-0.5F, cw));
-        ampApprox = ((orderValue + ampApprox) + ay) * 2.0F / 4095.0F;
+        ampApprox = ((orderValue + ampApprox) + ay) * 2.0F / 16383.0F;
         if (ampApprox >= 0.004F) {
           p = 0;
           exitg1 = false;
@@ -487,23 +488,44 @@ void G_Export_V3_step(void)
   }
 
   ampApprox = 0.0F;
-  for (i = 0; i < 4096; i++) {
-    ampApprox += G_Export_V3_B.FIR4[i];
+  for (i = 0; i < 16384; i++) {
+    ampApprox += G_Export_V3_B.FIR_[i];
   }
 
-  ampApprox /= 4096.0F;
+  ampApprox /= 16384.0F;
   orderValue = 0.0F;
-  for (p = 0; p < 4096; p++) {
-    ay = fabsf(G_Export_V3_B.FIR4[p] - ampApprox);
+  for (p = 0; p < 16384; p++) {
+    ay = fabsf(G_Export_V3_B.FIR_[p] - ampApprox);
     if (ay > orderValue) {
       orderValue = ay;
     }
   }
 
+  b_y1 = orderValue * 0.99F;
+  y3 = 0.0F;
+  peakCount = 0U;
+  for (p = 0; p < 16382; p++) {
+    ay = fabsf(G_Export_V3_B.FIR_[p + 1] - ampApprox);
+    if ((ay >= b_y1) && (ay >= fabsf(G_Export_V3_B.FIR_[p] - ampApprox)) && (ay >
+         fabsf(G_Export_V3_B.FIR_[p + 2] - ampApprox))) {
+      y3 += ay;
+      qY = peakCount + 1U;
+      if (peakCount + 1U < peakCount) {
+        qY = MAX_uint32_T;
+      }
+
+      peakCount = qY;
+    }
+  }
+
+  if (peakCount > 0U) {
+    orderValue = y3 / (real32_T)peakCount;
+  }
+
   for (i = 0; i < 3; i++) {
     ay = G_Export_V3_Y.frequency_Hz[i];
     if (ay > 0.0F) {
-      ay = 6.28318548F * ay / 2.0E+6F;
+      ay = 6.28318548F * ay / 8.0E+6F;
       cw = cosf(ay);
       sw = sinf(ay);
       c = 1.0F;
@@ -513,8 +535,8 @@ void G_Export_V3_step(void)
       b_y1 = 0.0F;
       y3 = 0.0F;
       den = 0.0F;
-      for (p = 0; p < 4096; p++) {
-        y = G_Export_V3_B.FIR4[p] - ampApprox;
+      for (p = 0; p < 16384; p++) {
+        y = G_Export_V3_B.FIR_[p] - ampApprox;
         ay += c * c;
         ss += sn * sn;
         b_y1 += c * sn;
@@ -554,18 +576,18 @@ void G_Export_V3_step(void)
   memset(&G_Export_V3_Y.waveform[0], 0, 600U * sizeof(real32_T));
   G_Export_V3_Y.waveCount = 0U;
   ampApprox = 0.0F;
-  for (i = 0; i < 4096; i++) {
-    ampApprox += G_Export_V3_B.FIR4[i];
+  for (i = 0; i < 16384; i++) {
+    ampApprox += G_Export_V3_B.FIR_[i];
   }
 
-  ampApprox /= 4096.0F;
+  ampApprox /= 16384.0F;
   orderValue = 0.0F;
   i = 1;
   imin = 1;
-  ay = G_Export_V3_B.FIR4[0] - ampApprox;
+  ay = G_Export_V3_B.FIR_[0] - ampApprox;
   b_y1 = ay;
-  for (p = 0; p < 4096; p++) {
-    y = G_Export_V3_B.FIR4[p] - ampApprox;
+  for (p = 0; p < 16384; p++) {
+    y = G_Export_V3_B.FIR_[p] - ampApprox;
     orderValue += y * y;
     if (y > ay) {
       ay = y;
@@ -585,14 +607,14 @@ void G_Export_V3_step(void)
       p = 3;
     }
 
-    ay = 2.0E+6F / G_Export_V3_Y.frequency_Hz[0] * (real32_T)p;
-    i0 = ceil(ay);
-    if (i0 + 2.0 < 4096.0) {
+    b_y1 = 8.0E+6F / G_Export_V3_Y.frequency_Hz[0] * (real32_T)p;
+    i0 = ceil(b_y1);
+    if (i0 + 2.0 < 16384.0) {
       startIndex = 1.0;
       p = 0;
       exitg1 = false;
-      while ((!exitg1) && (p <= (int32_T)((4096.0 - (i0 + 2.0)) - 1.0) - 1)) {
-        if ((G_Export_V3_B.FIR4[p] - ampApprox <= 0.0F) && (G_Export_V3_B.FIR4[p
+      while ((!exitg1) && (p <= (int32_T)((16384.0 - (i0 + 2.0)) - 1.0) - 1)) {
+        if ((G_Export_V3_B.FIR_[p] - ampApprox <= 0.0F) && (G_Export_V3_B.FIR_[p
              + 1] - ampApprox > 0.0F)) {
           startIndex = (real_T)p + 2.0;
           exitg1 = true;
@@ -602,21 +624,21 @@ void G_Export_V3_step(void)
       }
 
       for (p = 0; p < 600; p++) {
-        b_y1 = (((real32_T)p + 1.0F) - 1.0F) * ay / 599.0F + (real32_T)
+        ay = (((real32_T)p + 1.0F) - 1.0F) * b_y1 / 599.0F + (real32_T)
           startIndex;
-        i0 = floor(b_y1);
-        b_y1 -= (real32_T)i0;
+        i0 = floor(ay);
+        y3 = ay - (real32_T)i0;
         if (i0 < 1.0) {
           i0 = 1.0;
-          b_y1 = 0.0F;
-        } else if (i0 >= 4096.0) {
-          i0 = 4095.0;
-          b_y1 = 1.0F;
+          y3 = 0.0F;
+        } else if (i0 >= 16384.0) {
+          i0 = 16383.0;
+          y3 = 1.0F;
         }
 
-        y3 = G_Export_V3_B.FIR4[(int32_T)i0 - 1] - ampApprox;
-        G_Export_V3_Y.waveform[p] = ((G_Export_V3_B.FIR4[(int32_T)(i0 + 1.0) - 1]
-          - ampApprox) - y3) * b_y1 + y3;
+        ay = G_Export_V3_B.FIR_[(int32_T)i0 - 1] - ampApprox;
+        G_Export_V3_Y.waveform[p] = ((G_Export_V3_B.FIR_[(int32_T)(i0 + 1.0) - 1]
+          - ampApprox) - ay) * y3 + ay;
       }
 
       G_Export_V3_Y.waveCount = 600U;
@@ -633,10 +655,10 @@ void G_Export_V3_step(void)
   G_Export_V3_Y.amplitude_SettingVpk[1] *= 0.25F;
   G_Export_V3_Y.amplitude_Vpk[2] *= 0.25F;
   G_Export_V3_Y.amplitude_SettingVpk[2] *= 0.25F;
-  G_Export_V3_Y.Vpp = (G_Export_V3_peak_vertex(G_Export_V3_B.FIR4, ampApprox,
-    (real_T)i, 4096.0, true) - G_Export_V3_peak_vertex(G_Export_V3_B.FIR4,
-    ampApprox, (real_T)imin, 4096.0, false)) * 0.25F;
-  G_Export_V3_Y.Vrms = sqrtf(orderValue / 4096.0F) * 0.25F;
+  G_Export_V3_Y.Vpp = (G_Export_V3_peak_vertex(G_Export_V3_B.FIR_, ampApprox,
+    (real_T)i, 16384.0, true) - G_Export_V3_peak_vertex(G_Export_V3_B.FIR_,
+    ampApprox, (real_T)imin, 16384.0, false)) * 0.25F;
+  G_Export_V3_Y.Vrms = sqrtf(orderValue / 16384.0F) * 0.25F;
 }
 
 void G_Export_V3_initialize(void)

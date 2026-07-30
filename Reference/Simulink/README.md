@@ -20,6 +20,8 @@ V2 是保留的稳定版本；V3 是当前与 STM32 数据处理代码对应的�
 纯数字处理和代码导出模型：
 
 - 输入为 `int16[16384]`、`mode`、`periods`；
+- 使用完整8 MHz、16384点数据，不做4倍抽取；
+- 16384点Hann窗FFT的频率间隔为488.28125 Hz；
 - 没有信号源 `scale` 输入；
 - 同时输出 `amplitude_Vpk[3]` 和 `amplitude_SettingVpk[3]`；
 - Vpp、Vrms和 `waveform[600]` 始终表示ADC实际输入；
