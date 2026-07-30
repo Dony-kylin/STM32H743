@@ -10,6 +10,23 @@ extern "C" {
 #define TASK0729_INPUT_SAMPLES       16384U
 #define TASK0729_COMPONENT_COUNT     3U
 #define TASK0729_WAVEFORM_SAMPLES    600U
+#define TASK0729_INPUT_SAMPLE_RATE_HZ 8000000.0F
+#define TASK0729_ADC_FULL_SCALE_VPK   2.5F
+
+/*
+ * Voltage scaling is kept outside the generated Simulink sources so code
+ * regeneration cannot overwrite the hardware calibration.
+ *
+ * FRONTEND_GAIN is the measured analog gain from the signal input to the
+ * AD9220 input. VOLTAGE_CALIBRATION is a final dimensionless trim factor.
+ */
+#ifndef TASK0729_FRONTEND_GAIN
+#define TASK0729_FRONTEND_GAIN        4.0F
+#endif
+
+#ifndef TASK0729_VOLTAGE_CALIBRATION
+#define TASK0729_VOLTAGE_CALIBRATION  1.0F
+#endif
 
 typedef enum
 {
@@ -57,6 +74,12 @@ uint8_t Task0729_Process(
     Task0729_Mode mode,
     uint8_t periods,
     Task0729_Result *result);
+
+/*
+ * Converts one signed Q15 ADC sample to the calibrated external-input
+ * voltage. This uses the same scale as amplitude_vpk, vpp, vrms and waveform.
+ */
+float Task0729_SampleToInputVolts(int16_t sample);
 
 /*
  * Returns the most recent completed result owned by this module.

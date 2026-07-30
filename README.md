@@ -172,7 +172,7 @@ DUMP
 
 ```text
 #OK DUMP ARMED
-#DUMP BEGIN count=16384 fs=8000000Hz columns=voltage_V
+#DUMP BEGIN count=16384 fs=8000000Hz columns=input_voltage_V
 0.0123
 0.0246
 ...

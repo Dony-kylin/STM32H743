@@ -17,8 +17,9 @@
 → 64阶FIR低通
 → 4倍抽取至2 MHz
 → 4096点Hann窗FFT
-→ 频率、幅值和时域参数提取
-→ 除以前端增益4，恢复真实输入电压
+→ 频率和波形提取
+→ 原始8 MHz数据的多频联合最小二乘幅值拟合
+→ 前端增益与电压校准，恢复真实输入电压
 ```
 
 应用层只使用 `task0729_processor.h`，不要直接访问
@@ -162,6 +163,33 @@ typedef struct
 | `fundamental_hz` | Hz | 基频 |
 | `waveform[i]` | V | 去直流并恢复真实幅值后的显示波形 |
 | `waveform_count` | 点 | `waveform` 中的有效点数，最大600 |
+
+幅值拟合使用一个直流项和最多三个正弦/余弦分量同时求解。与逐个
+频率独立拟合相比，强基波、直流偏置和其他谐波不容易串入目标分量。
+`vpp` 和 `vrms` 由联合拟合后的交流波形计算，因此不会把单个量化
+尖峰误认为真实幅值。
+
+电压标定参数在 `task0729_processor.h` 中：
+
+```c
+#define TASK0729_FRONTEND_GAIN        4.0F
+#define TASK0729_VOLTAGE_CALIBRATION  1.0F
+```
+
+`TASK0729_FRONTEND_GAIN` 必须填写信号输入端到 AD9220 输入端的实测
+模拟增益，不能只使用原理图标称值。使用已知标准信号校准时：
+
+```text
+新 VOLTAGE_CALIBRATION
+= 旧 VOLTAGE_CALIBRATION × 标准信号幅值 / 当前测量幅值
+```
+
+例如标准信号为 `25.000 mVpp`，当前测得 `24.223 mVpp`，则校准
+系数应乘以约 `1.03208`。
+
+`Task0729_SampleToInputVolts()` 可以把一个有符号 Q15 采样转换为使用
+相同标定系数的外部输入瞬时电压。它只是瞬时值，不能替代整帧的
+`amplitude_vpk` 或 `vpp`。
 
 只遍历有效分量：
 

@@ -55,7 +55,6 @@ typedef struct
 #define AD9220_SPECTRUM_UART_BUFFER_SIZE 512U
 #define AD9220_UART_MEASURE_PERIOD_MS 5000U
 #define AD9220_FULL_SCALE_MV          2500U
-#define AD9220_FULL_SCALE_100UV       25000L
 #define AD9220_CAPTURE_RAM \
   __attribute__((section(".scope_ram"), aligned(32)))
 
@@ -1235,7 +1234,8 @@ static void UART_SendDump(void)
   uint32_t used = 0U;
 
   (void)snprintf(buffer, sizeof(buffer),
-                 "#DUMP BEGIN count=%lu fs=%luHz columns=voltage_V\r\n",
+                 "#DUMP BEGIN count=%lu fs=%luHz "
+                 "columns=input_voltage_V\r\n",
                  (unsigned long)AD9220_CAPTURE_SAMPLES,
                  (unsigned long)AD9220_GetSampleRateHz());
   UART_SendText(buffer);
@@ -1263,8 +1263,13 @@ static void UART_SendDump(void)
       used = 0U;
     }
 
-    scaled = (int32_t)(((int64_t)AdcCaptureSamples[i] *
-                        AD9220_FULL_SCALE_100UV) / 32768L);
+    {
+      float input_voltage =
+          Task0729_SampleToInputVolts(AdcCaptureSamples[i]);
+      scaled = (int32_t)((input_voltage >= 0.0F) ?
+          (input_voltage * 10000.0F + 0.5F) :
+          (input_voltage * 10000.0F - 0.5F));
+    }
     magnitude = (scaled < 0) ?
                 (uint32_t)(-scaled) : (uint32_t)scaled;
     sign = (scaled < 0) ? "-" : "";
