@@ -80,8 +80,6 @@ void Error_Handler(void);
 #define AD7606_BUSY_EXTI_IRQn EXTI0_IRQn
 #define USER_LED_Pin GPIO_PIN_7
 #define USER_LED_GPIO_Port GPIOG
-#define LCD_NSS_Pin GPIO_PIN_8
-#define LCD_NSS_GPIO_Port GPIOG
 #define AD7606_CONVST_AB_Pin GPIO_PIN_8
 #define AD7606_CONVST_AB_GPIO_Port GPIOA
 #define LED2_Pin GPIO_PIN_11
@@ -120,21 +118,6 @@ void Error_Handler(void);
 #define AD9220_D4_GPIO_Port GPIOE
 #define AD9220_D6_Pin GPIO_PIN_15
 #define AD9220_D6_GPIO_Port GPIOE
-#define LCD_BL_Pin GPIO_PIN_12
-#define LCD_BL_GPIO_Port GPIOG
-#define LCD_SCK_Pin GPIO_PIN_13
-#define LCD_SCK_GPIO_Port GPIOG
-#define LCD_MOSI_Pin GPIO_PIN_14
-#define LCD_MOSI_GPIO_Port GPIOG
-#define LCD_DC_Pin GPIO_PIN_15
-#define LCD_DC_GPIO_Port GPIOG
-
-/* USER CODE BEGIN Private defines */
-
-#define APP_LCD_ENABLED 0U
-
-/* USER CODE END Private defines */
-
 #ifdef __cplusplus
 }
 #endif

@@ -1,45 +1,23 @@
 #include "ad7606_scope.h"
 
-#include "lcd_spi_154.h"
 #include "stm32h7xx_hal.h"
 
-#include <stdio.h>
 #include <string.h>
 
 /*
  * The acquisition task submits blocks captured from the AD9220.
- * A 4096-sample ring gives the LCD task enough history to find a clean
- * rising-edge trigger without slowing the converter down.
+ * A 4096-sample ring gives the measurement code enough history to calculate
+ * stable time-domain values without slowing the converter down.
  */
 #define SCOPE_RING_SIZE               4096U
 #define SCOPE_RING_MASK               (SCOPE_RING_SIZE - 1U)
-#define SCOPE_SNAPSHOT_LIMIT          3072U
-#define SCOPE_SNAPSHOT_RETRIES        3U
-
-#define SCOPE_GRAPH_X                 8U
-#define SCOPE_GRAPH_Y                 34U
-#define SCOPE_GRAPH_WIDTH             224U
-#define SCOPE_GRAPH_HEIGHT            128U
-#define SCOPE_BLIT_ROWS               16U
-#define SCOPE_HORIZONTAL_DIVS         8U
-#define SCOPE_VERTICAL_DIVS           8U
 #define SCOPE_DEFAULT_MV_PER_DIV      100U
 #define SCOPE_DEFAULT_REFRESH_MS      500U
-
-#define SCOPE_COLOR_BLACK             0x0000U
-#define SCOPE_COLOR_GRID              0x2125U
-#define SCOPE_COLOR_AXIS              0x4208U
-#define SCOPE_COLOR_BORDER            0x7BEFU
-#define SCOPE_COLOR_WAVE              0xFFE0U
 
 #define SCOPE_D2_RAM                  __attribute__((section(".scope_ram"), aligned(32)))
 
 static int16_t scope_ring_samples[SCOPE_RING_SIZE] SCOPE_D2_RAM;
 static uint32_t scope_ring_cycles[SCOPE_RING_SIZE] SCOPE_D2_RAM;
-static int16_t scope_snapshot_samples[SCOPE_RING_SIZE] SCOPE_D2_RAM;
-static uint32_t scope_snapshot_cycles[SCOPE_RING_SIZE] SCOPE_D2_RAM;
-static int16_t scope_auto_samples[SCOPE_SNAPSHOT_LIMIT] SCOPE_D2_RAM;
-static uint16_t scope_graph[SCOPE_GRAPH_WIDTH * SCOPE_GRAPH_HEIGHT] SCOPE_D2_RAM;
 
 static volatile uint32_t scope_write_count;
 static uint32_t scope_decimation_count;
@@ -56,22 +34,10 @@ static volatile uint8_t scope_center_auto;
 static uint64_t scope_virtual_cycles_q32;
 static AD7606_ScopeMeasurements scope_measurements;
 
-static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles);
 static void ScopeAnalyzeMeasurements(const int16_t *samples, uint32_t count,
                                      uint32_t input_sample_rate_hz);
-static void ScopeAnalyzeAndRender(uint32_t count,
-                                  const AD7606_ScopeConfig *config);
 static uint32_t ScopeIntegerSqrt(uint64_t value);
 static int32_t ScopeRawToMv(int32_t raw);
-static uint16_t ScopeSampleToY(int16_t raw, uint32_t mv_per_div,
-                               int32_t center_mv);
-static void ScopeClearGraph(void);
-static void ScopeDrawGrid(void);
-static void ScopePutPixel(int32_t x, int32_t y, uint16_t color);
-static void ScopeDrawLine(int32_t x0, int32_t y0,
-                          int32_t x1, int32_t y1, uint16_t color);
-static void ScopeDisplayText(uint16_t y, const char *text);
-static void ScopeBlitGraph(void);
 
 void AD7606_ScopeInit(uint32_t full_scale_mv)
 {
@@ -299,133 +265,6 @@ uint8_t AD7606_ScopeGetMeasurements(
 
   *measurements = scope_measurements;
   return measurements->valid;
-}
-
-uint8_t AD7606_ScopeAutoConfigure(void)
-{
-  static const uint32_t vdiv_options[] =
-      {50U, 100U, 200U, 500U, 1000U, 2000U};
-  uint32_t count = ScopeTakeSnapshot(scope_auto_samples, NULL);
-  int16_t minimum;
-  int16_t maximum;
-  int32_t midpoint;
-  int32_t positive_peak;
-  int32_t negative_peak;
-  uint32_t peak_mv;
-  uint32_t selected_vdiv = 2000U;
-
-  if (count < SCOPE_GRAPH_WIDTH)
-  {
-    return 0U;
-  }
-
-  minimum = scope_auto_samples[0];
-  maximum = scope_auto_samples[0];
-  for (uint32_t i = 0U; i < count; ++i)
-  {
-    int32_t value = scope_auto_samples[i];
-    if (value < minimum)
-    {
-      minimum = (int16_t)value;
-    }
-    if (value > maximum)
-    {
-      maximum = (int16_t)value;
-    }
-  }
-  midpoint = ((int32_t)maximum + minimum) / 2;
-  positive_peak = (int32_t)maximum - midpoint;
-  negative_peak = midpoint - (int32_t)minimum;
-  peak_mv = (uint32_t)ScopeRawToMv(
-      (positive_peak > negative_peak) ? positive_peak : negative_peak);
-
-  for (uint32_t i = 0U;
-       i < (sizeof(vdiv_options) / sizeof(vdiv_options[0])); ++i)
-  {
-    if (peak_mv <= (vdiv_options[i] * 3U))
-    {
-      selected_vdiv = vdiv_options[i];
-      break;
-    }
-  }
-
-  /*
-   * Keep the user's decimation setting. Automatic timebase selection is
-   * handled by the LCD renderer and does not alter the 8 MHz ADC clock.
-   */
-  scope_mv_per_div = selected_vdiv;
-  scope_center_mv = ScopeRawToMv(midpoint);
-  scope_center_auto = 1U;
-  scope_time_per_div_us = 0U;
-  return 1U;
-}
-
-void AD7606_ScopeDisplayInit(void)
-{
-  LCD_SetDirection(Direction_V);
-  LCD_SetBackColor(LCD_BLACK);
-  LCD_SetColor(LCD_WHITE);
-  LCD_SetAsciiFont(&ASCII_Font12);
-  LCD_ShowNumMode(Fill_Space);
-
-  ScopeDisplayText(2U, "V:---mV  A:---mV");
-  ScopeDisplayText(16U, "F:---Hz  100mV/div");
-
-  ScopeClearGraph();
-  ScopeDrawGrid();
-  ScopeBlitGraph();
-}
-
-void AD7606_ScopeDisplayRefresh(void)
-{
-  AD7606_ScopeConfig config;
-  uint32_t count =
-      ScopeTakeSnapshot(scope_snapshot_samples, scope_snapshot_cycles);
-
-  AD7606_ScopeGetConfig(&config);
-  if (count < SCOPE_GRAPH_WIDTH)
-  {
-    char line[40];
-    (void)snprintf(line, sizeof(line), "%sCH%u  waiting for signal",
-                   (config.running != 0U) ? "" : "HOLD ",
-                   config.channel);
-    ScopeDisplayText(2U, line);
-    return;
-  }
-
-  ScopeAnalyzeAndRender(count, &config);
-}
-
-static uint32_t ScopeTakeSnapshot(int16_t *samples, uint32_t *cycles)
-{
-  /*
-   * Keep enough unused ring entries ahead of the snapshot so the acquisition
-   * task can append the next DMA block while the LCD copies history.
-   */
-  for (uint32_t attempt = 0U; attempt < SCOPE_SNAPSHOT_RETRIES; ++attempt)
-  {
-    uint32_t end = scope_write_count;
-    uint32_t count = (end < SCOPE_SNAPSHOT_LIMIT) ?
-                     end : SCOPE_SNAPSHOT_LIMIT;
-    uint32_t first = end - count;
-
-    for (uint32_t i = 0U; i < count; ++i)
-    {
-      uint32_t source = (first + i) & SCOPE_RING_MASK;
-      samples[i] = scope_ring_samples[source];
-      if (cycles != NULL)
-      {
-        cycles[i] = scope_ring_cycles[source];
-      }
-    }
-
-    __DMB();
-    if ((scope_write_count - end) <= (SCOPE_RING_SIZE - count))
-    {
-      return count;
-    }
-  }
-  return 0U;
 }
 
 static void ScopeAnalyzeMeasurements(const int16_t *samples, uint32_t count,
@@ -773,6 +612,8 @@ static uint32_t ScopeEstimateFrequencyFft(
 }
 #endif
 
+#if 0
+/* Legacy LCD renderer retained only as historical reference. */
 static void ScopeAnalyzeAndRender(uint32_t count,
                                   const AD7606_ScopeConfig *config)
 {
@@ -1015,6 +856,7 @@ static void ScopeAnalyzeAndRender(uint32_t count,
   }
   ScopeDisplayText(16U, line);
 }
+#endif
 
 static uint32_t ScopeIntegerSqrt(uint64_t value)
 {
@@ -1057,6 +899,8 @@ static int32_t ScopeRawToMv(int32_t raw)
   return (int32_t)(scaled / 32768);
 }
 
+#if 0
+/* Legacy LCD drawing helpers retained only as historical reference. */
 static uint16_t ScopeSampleToY(int16_t raw, uint32_t mv_per_div,
                                int32_t center_mv)
 {
@@ -1220,3 +1064,4 @@ static void ScopeBlitGraph(void)
                    &scope_graph[row * SCOPE_GRAPH_WIDTH]);
   }
 }
+#endif

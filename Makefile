@@ -80,9 +80,6 @@ Expand/Src/ad9220.c \
 Expand/Src/ad9220_spectrum.c \
 Expand/Src/ad7606_scope.c \
 Expand/Src/ad7606_scope_store.c \
-Expand/Src/lcd_spi_154.c \
-Expand/Src/lcd_fonts.c \
-Expand/Src/lcd_image.c \
 Core/Src/stm32h7xx_hal_timebase_tim.c
 
 # ASM sources

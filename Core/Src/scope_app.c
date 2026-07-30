@@ -28,7 +28,6 @@
 #include "ad7606_scope.h"
 #include "ad7606_scope_store.h"
 #include "usart.h"
-#include "lcd_spi_154.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -137,7 +136,6 @@ static void UART_SendText(const char *text);
 static void UART_SendScopeStatus(void);
 static size_t UART_StatusAppendText(size_t offset, const char *text);
 static size_t UART_StatusAppendUnsigned(size_t offset, uint32_t value);
-static size_t UART_StatusAppendSigned(size_t offset, int32_t value);
 static size_t UART_StatusAppendHex(size_t offset, uint32_t value);
 static uint8_t UART_SaveScopeConfig(void);
 static void UART_Acknowledge(const char *ok_message);
@@ -574,10 +572,6 @@ static int16_t AdcCaptureSamples[AD9220_CAPTURE_SAMPLES]
 static AD9220_SpectrumResult AdcSpectrumResult;
 static char UartStatusBuffer[512];
 static uint32_t AdcLastMeasurementTick;
-#if APP_LCD_ENABLED
-static uint32_t ScopeLcdRefreshTick;
-#endif
-
 static void AD9220_PrepareAcquisition(void);
 static void ScopeApp_ProcessAcquisition(void);
 static void ScopeApp_ProcessCompletedCapture(void);
@@ -591,11 +585,9 @@ static void UART_SendText(const char *text);
 static void UART_SendScopeStatus(void);
 static size_t UART_StatusAppendText(size_t offset, const char *text);
 static size_t UART_StatusAppendUnsigned(size_t offset, uint32_t value);
-static size_t UART_StatusAppendSigned(size_t offset, int32_t value);
 static size_t UART_StatusAppendHex(size_t offset, uint32_t value);
 static uint8_t UART_SaveScopeConfig(void);
 static void UART_Acknowledge(const char *ok_message);
-static void AD9220_ApplyStartupScopeConfig(void);
 
 void ScopeApp_Init(void)
 {
@@ -608,17 +600,9 @@ void ScopeApp_Init(void)
   {
     UartStreamEnabled = ScopeStartupStreamEnabled;
   }
-  AD9220_ApplyStartupScopeConfig();
-
   HAL_Delay(20U);
   UART_SendText(
       "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz FFT=16384 CLEAN=2450mV\r\n");
-
-#if APP_LCD_ENABLED
-  SPI_LCD_Init();
-  AD7606_ScopeDisplayInit();
-  ScopeLcdRefreshTick = HAL_GetTick();
-#endif
 
   AD9220_PrepareAcquisition();
 }
@@ -683,21 +667,6 @@ void ScopeApp_Process(void)
     AdcLastMeasurementTick = now;
     UART_SendMeasurements();
   }
-
-#if APP_LCD_ENABLED
-  if ((int32_t)(now - ScopeLcdRefreshTick) >= 0)
-  {
-    uint32_t refresh_ms = AD7606_ScopeGetRefreshMs();
-
-    if (refresh_ms < 250U)
-    {
-      refresh_ms = 250U;
-    }
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    AD7606_ScopeDisplayRefresh();
-    ScopeLcdRefreshTick = now + refresh_ms;
-  }
-#endif
 
   ScopeApp_ProcessAcquisition();
 }
@@ -874,7 +843,6 @@ static void UART_HandleScopeCommand(char *command)
   char *cursor = command;
   char *end;
   char extra;
-  long signed_value;
   unsigned long value;
 
   while ((*cursor != '\0') && (isspace((unsigned char)*cursor) != 0))
@@ -894,16 +862,11 @@ static void UART_HandleScopeCommand(char *command)
   if (strcmp(cursor, "HELP") == 0)
   {
     UART_SendText(
-        "#CMD CH 1 | VDIV 50/100/200/500/1000/2000\r\n"
-        "#CMD CENTER -2500..2500(mV) or CENTER AUTO\r\n"
         "#CMD RATE 8000000 (effective sample rate)\r\n"
-        "#CMD TIME AUTO or TIME 10..1000000(us/div)\r\n"
-        "#CMD DEC 1/2/4/8/16/32 | REFRESH 250..2000(ms)\r\n"
-        "#CMD AUTO (fit VDIV/CENTER/TIME; keep DEC)\r\n"
         "#CMD DUMP (one 16384-point CSV waveform)\r\n"
         "#CMD FFT ON/OFF (16384-point H1..H10 and THD)\r\n"
         "#CMD SPECTRUM (one full 0..Nyquist FFT CSV)\r\n"
-        "#CMD RUN | STOP | STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
+        "#CMD STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
   }
   else if (strcmp(cursor, "STATUS") == 0)
   {
@@ -960,16 +923,6 @@ static void UART_HandleScopeCommand(char *command)
       UART_SendText("#OK SPECTRUM ARMED\r\n");
     }
   }
-  else if (strcmp(cursor, "RUN") == 0)
-  {
-    AD7606_ScopeSetRunning(1U);
-    UART_Acknowledge("#OK RUN\r\n");
-  }
-  else if (strcmp(cursor, "STOP") == 0)
-  {
-    AD7606_ScopeSetRunning(0U);
-    UART_Acknowledge("#OK HOLD\r\n");
-  }
   else if (strcmp(cursor, "STREAM ON") == 0)
   {
     UartStreamEnabled = 1U;
@@ -980,60 +933,6 @@ static void UART_HandleScopeCommand(char *command)
     UartStreamEnabled = 0U;
     UART_Acknowledge("#OK STREAM OFF\r\n");
   }
-  else if (strcmp(cursor, "TIME AUTO") == 0)
-  {
-    (void)AD7606_ScopeSetTimePerDivUs(0U);
-    UART_Acknowledge("#OK TIME AUTO\r\n");
-  }
-  else if (strcmp(cursor, "CENTER AUTO") == 0)
-  {
-    AD7606_ScopeSetCenterAuto(1U);
-    UART_Acknowledge("#OK CENTER AUTO\r\n");
-  }
-  else if (strcmp(cursor, "AUTO") == 0)
-  {
-    if (AD7606_ScopeAutoConfigure() != 0U)
-    {
-      UART_Acknowledge("#OK AUTO\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR AUTO waiting for sampled signal\r\n");
-    }
-  }
-  else if (sscanf(cursor, "CH %lu %c", &value, &extra) == 1)
-  {
-    if (AD7606_ScopeSetChannel((uint32_t)value) != 0U)
-    {
-      UART_Acknowledge("#OK CH\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR CH must be 1\r\n");
-    }
-  }
-  else if (sscanf(cursor, "VDIV %lu %c", &value, &extra) == 1)
-  {
-    if (AD7606_ScopeSetMvPerDiv((uint32_t)value) != 0U)
-    {
-      UART_Acknowledge("#OK VDIV\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR VDIV 50/100/200/500/1000/2000\r\n");
-    }
-  }
-  else if (sscanf(cursor, "CENTER %ld %c", &signed_value, &extra) == 1)
-  {
-    if (AD7606_ScopeSetCenterMv((int32_t)signed_value) != 0U)
-    {
-      UART_Acknowledge("#OK CENTER\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR CENTER outside ADC range\r\n");
-    }
-  }
   else if (sscanf(cursor, "RATE %lu %c", &value, &extra) == 1)
   {
     if (value == (unsigned long)AD9220_GetSampleRateHz())
@@ -1043,39 +942,6 @@ static void UART_HandleScopeCommand(char *command)
     else
     {
       UART_SendText("#ERR RATE fixed at 8000000 sps\r\n");
-    }
-  }
-  else if (sscanf(cursor, "TIME %lu %c", &value, &extra) == 1)
-  {
-    if (AD7606_ScopeSetTimePerDivUs((uint32_t)value) != 0U)
-    {
-      UART_Acknowledge("#OK TIME\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR TIME 10..1000000 us/div\r\n");
-    }
-  }
-  else if (sscanf(cursor, "DEC %lu %c", &value, &extra) == 1)
-  {
-    if (AD7606_ScopeSetDecimation((uint32_t)value) != 0U)
-    {
-      UART_Acknowledge("#OK DEC\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR DEC 1/2/4/8/16/32\r\n");
-    }
-  }
-  else if (sscanf(cursor, "REFRESH %lu %c", &value, &extra) == 1)
-  {
-    if (AD7606_ScopeSetRefreshMs((uint32_t)value) != 0U)
-    {
-      UART_Acknowledge("#OK REFRESH\r\n");
-    }
-    else
-    {
-      UART_SendText("#ERR REFRESH 250..2000 ms\r\n");
     }
   }
   else
@@ -1097,7 +963,6 @@ static void UART_SendText(const char *text)
 
 static void UART_SendScopeStatus(void)
 {
-  AD7606_ScopeConfig config;
   uint32_t sample_rate_hz;
   uint32_t target_rate_hz;
   uint32_t overrun_count;
@@ -1112,7 +977,6 @@ static void UART_SendScopeStatus(void)
   uint32_t clock_level;
   size_t offset = 0U;
 
-  AD7606_ScopeGetConfig(&config);
   sample_rate_hz = AD7606_ScopeGetInputSampleRateHz();
   target_rate_hz = AD9220_GetSampleRateHz();
   overrun_count = AD9220_GetOverrangeCount();
@@ -1127,40 +991,7 @@ static void UART_SendScopeStatus(void)
   clock_level = AD9220_GetLastClockLevel();
 
   offset = UART_StatusAppendText(offset, "#SCOPE ");
-  offset = UART_StatusAppendText(
-      offset, (config.running != 0U) ? "RUN CH=" : "HOLD CH=");
-  offset = UART_StatusAppendUnsigned(offset, config.channel);
-  offset = UART_StatusAppendText(offset, " VDIV=");
-  offset = UART_StatusAppendUnsigned(offset, config.mv_per_div);
-  offset = UART_StatusAppendText(offset, "mV CENTER=");
-  if (config.center_auto != 0U)
-  {
-    offset = UART_StatusAppendText(offset, "AUTO");
-  }
-  else
-  {
-    if (config.center_mv >= 0)
-    {
-      offset = UART_StatusAppendText(offset, "+");
-    }
-    offset = UART_StatusAppendSigned(offset, config.center_mv);
-    offset = UART_StatusAppendText(offset, "mV");
-  }
-
-  offset = UART_StatusAppendText(offset, " TIME=");
-  if (config.time_per_div_us == 0U)
-  {
-    offset = UART_StatusAppendText(offset, "AUTO");
-  }
-  else
-  {
-    offset = UART_StatusAppendUnsigned(offset, config.time_per_div_us);
-    offset = UART_StatusAppendText(offset, "us/div");
-  }
-
-  offset = UART_StatusAppendText(offset, " DEC=");
-  offset = UART_StatusAppendUnsigned(offset, config.decimation);
-  offset = UART_StatusAppendText(offset, " RATE=");
+  offset = UART_StatusAppendText(offset, "RATE=");
   offset = UART_StatusAppendUnsigned(offset, target_rate_hz);
   offset = UART_StatusAppendText(offset, "Hz FS=");
   offset = UART_StatusAppendUnsigned(offset, sample_rate_hz);
@@ -1190,9 +1021,7 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendUnsigned(offset, timer_delta);
   offset = UART_StatusAppendText(offset, "/");
   offset = UART_StatusAppendUnsigned(offset, timer_delta_limit);
-  offset = UART_StatusAppendText(offset, " REFRESH=");
-  offset = UART_StatusAppendUnsigned(offset, config.refresh_ms);
-  offset = UART_StatusAppendText(offset, "ms STREAM=");
+  offset = UART_StatusAppendText(offset, " STREAM=");
   offset = UART_StatusAppendText(
       offset, (UartStreamEnabled != 0U) ? "ON FFT=" : "OFF FFT=");
   offset = UART_StatusAppendText(
@@ -1244,22 +1073,6 @@ static size_t UART_StatusAppendUnsigned(size_t offset, uint32_t value)
   return offset;
 }
 
-static size_t UART_StatusAppendSigned(size_t offset, int32_t value)
-{
-  uint32_t magnitude;
-
-  if (value < 0)
-  {
-    offset = UART_StatusAppendText(offset, "-");
-    magnitude = (uint32_t)(-(value + 1)) + 1U;
-  }
-  else
-  {
-    magnitude = (uint32_t)value;
-  }
-  return UART_StatusAppendUnsigned(offset, magnitude);
-}
-
 static size_t UART_StatusAppendHex(size_t offset, uint32_t value)
 {
   static const char hex_digits[] = "0123456789ABCDEF";
@@ -1300,27 +1113,6 @@ static void UART_Acknowledge(const char *ok_message)
 {
   ScopeConfigDirty = 1U;
   UART_SendText(ok_message);
-}
-
-static void AD9220_ApplyStartupScopeConfig(void)
-{
-  if (ScopeStartupConfigValid == 0U)
-  {
-    return;
-  }
-
-  (void)AD7606_ScopeSetChannel(ScopeStartupConfig.channel);
-  (void)AD7606_ScopeSetMvPerDiv(ScopeStartupConfig.mv_per_div);
-  (void)AD7606_ScopeSetDecimation(ScopeStartupConfig.decimation);
-  (void)AD7606_ScopeSetCenterMv(ScopeStartupConfig.center_mv);
-  if (ScopeStartupConfig.center_auto != 0U)
-  {
-    AD7606_ScopeSetCenterAuto(1U);
-  }
-  (void)AD7606_ScopeSetTimePerDivUs(
-      ScopeStartupConfig.time_per_div_us);
-  (void)AD7606_ScopeSetRefreshMs(ScopeStartupConfig.refresh_ms);
-  AD7606_ScopeSetRunning(ScopeStartupConfig.running);
 }
 
 static void AD9220_PrepareAcquisition(void)

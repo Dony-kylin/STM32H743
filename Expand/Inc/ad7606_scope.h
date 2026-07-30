@@ -44,8 +44,6 @@ void AD7606_ScopeInit(uint32_t full_scale_mv);
 void AD7606_ScopePushFrame(const int16_t *channels);
 void AD7606_ScopePushSamples(const int16_t *samples, uint32_t count,
                              uint32_t input_sample_rate_hz);
-void AD7606_ScopeDisplayInit(void);
-void AD7606_ScopeDisplayRefresh(void);
 void AD7606_ScopeGetConfig(AD7606_ScopeConfig *config);
 uint8_t AD7606_ScopeSetChannel(uint32_t channel);
 uint8_t AD7606_ScopeSetMvPerDiv(uint32_t mv_per_div);
@@ -58,7 +56,6 @@ void AD7606_ScopeSetRunning(uint8_t running);
 uint32_t AD7606_ScopeGetRefreshMs(void);
 uint32_t AD7606_ScopeGetInputSampleRateHz(void);
 uint8_t AD7606_ScopeGetMeasurements(AD7606_ScopeMeasurements *measurements);
-uint8_t AD7606_ScopeAutoConfigure(void);
 
 #ifdef __cplusplus
 }

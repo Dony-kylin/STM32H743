@@ -124,9 +124,6 @@ int main(void)
   MX_GPIO_Init();
   MX_QUADSPI_Init();
   MX_SPI1_Init();
-#if APP_LCD_ENABLED
-  MX_SPI6_Init();
-#endif
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   {
@@ -135,9 +132,6 @@ int main(void)
                             (uint16_t)(sizeof(boot_message) - 1U),
                             100U);
   }
-  /*
-   * LCD output and SPI6 are disabled while acquiring AD9220 data.
-   */
   /* USER CODE END 2 */
 
   ScopeApp_Init();
