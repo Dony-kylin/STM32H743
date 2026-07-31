@@ -21,7 +21,7 @@ extern "C" {
  * AD9220 input. VOLTAGE_CALIBRATION is a final dimensionless trim factor.
  */
 #ifndef TASK0729_FRONTEND_GAIN
-#define TASK0729_FRONTEND_GAIN        4.0F
+#define TASK0729_FRONTEND_GAIN        4.08F
 #endif
 
 #ifndef TASK0729_VOLTAGE_CALIBRATION
