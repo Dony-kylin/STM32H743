@@ -99,7 +99,8 @@ uint8_t Task0729_Process(
   /* 1. 把一整帧ADC数据交给Simulink生成代码。 */
   memcpy(G_Export_V4_U.adc_block, samples,
          sizeof(G_Export_V4_U.adc_block));
-  G_Export_V4_U.mode = (uint8_T)mode;
+  /* 统一使用题目3：所有工况都走抗干扰和幅值补偿路径。 */
+  G_Export_V4_U.mode = (uint8_T)TASK0729_MODE_QUESTION_3;
   G_Export_V4_U.periods = periods;
   /* 2. 执行FFT、谐波提取和题目3的抗干扰处理。 */
   G_Export_V4_step();

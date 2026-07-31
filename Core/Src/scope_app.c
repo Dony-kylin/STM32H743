@@ -1087,8 +1087,10 @@ static void UART_HandleScopeCommand(char *command)
   {
     if ((value >= 1UL) && (value <= 3UL))
     {
-      TaskProcessorMode = (Task0729_Mode)value;
-      UART_Acknowledge("#OK MODE\r\n");
+      /* 保留命令兼容性，但内部统一使用题目3处理路径。 */
+      (void)value;
+      TaskProcessorMode = TASK0729_MODE_QUESTION_3;
+      UART_Acknowledge("#OK MODE 3 (FIXED)\r\n");
     }
     else
     {
