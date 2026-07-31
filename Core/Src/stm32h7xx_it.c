@@ -80,6 +80,9 @@ static void Fault_UART_Send(const char *text)
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
+/* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
@@ -98,9 +101,7 @@ void NMI_Handler(void)
 
   /* USER CODE END NonMaskableInt_IRQn 0 */
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-   while (1)
-  {
-  }
+  NVIC_SystemReset();
   /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
@@ -112,11 +113,7 @@ void HardFault_Handler(void)
   /* USER CODE BEGIN HardFault_IRQn 0 */
   Fault_UART_Send("#FAULT HARD\r\n");
   /* USER CODE END HardFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-    /* USER CODE END W1_HardFault_IRQn 0 */
-  }
+  NVIC_SystemReset();
 }
 
 /**
@@ -127,11 +124,7 @@ void MemManage_Handler(void)
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
   Fault_UART_Send("#FAULT MPU\r\n");
   /* USER CODE END MemoryManagement_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
-    /* USER CODE END W1_MemoryManagement_IRQn 0 */
-  }
+  NVIC_SystemReset();
 }
 
 /**
@@ -142,11 +135,7 @@ void BusFault_Handler(void)
   /* USER CODE BEGIN BusFault_IRQn 0 */
   Fault_UART_Send("#FAULT BUS\r\n");
   /* USER CODE END BusFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_BusFault_IRQn 0 */
-    /* USER CODE END W1_BusFault_IRQn 0 */
-  }
+  NVIC_SystemReset();
 }
 
 /**
@@ -157,11 +146,7 @@ void UsageFault_Handler(void)
   /* USER CODE BEGIN UsageFault_IRQn 0 */
   Fault_UART_Send("#FAULT USAGE\r\n");
   /* USER CODE END UsageFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_UsageFault_IRQn 0 */
-    /* USER CODE END W1_UsageFault_IRQn 0 */
-  }
+  NVIC_SystemReset();
 }
 
 /**
@@ -196,6 +181,14 @@ void TIM6_DAC_IRQHandler(void)
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
 
   /* USER CODE END TIM6_DAC_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USB On The Go FS global interrupt.
+  */
+void OTG_FS_IRQHandler(void)
+{
+  HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
 }
 
 /* USER CODE BEGIN 1 */

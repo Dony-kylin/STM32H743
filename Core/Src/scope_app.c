@@ -27,6 +27,7 @@
 #include "ad9220_spectrum.h"
 #include "ad7606_scope.h"
 #include "ad7606_scope_store.h"
+#include "app_usb_device.h"
 #include "task0729_processor.h"
 #include "usart.h"
 #include <ctype.h>
@@ -436,7 +437,6 @@ void StartTask_Lcd(void *argument)
 
   for(;;)
   {
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);  /* LED 闪烁 */
     AD7606_ScopeDisplayRefresh();
     {
       uint32_t refresh_ms = AD7606_ScopeGetRefreshMs();
@@ -596,6 +596,9 @@ static uint8_t UART_SaveScopeConfig(void);
 static void UART_Acknowledge(const char *ok_message);
 static void AD9220_ApplyStartupScopeConfig(void);
 static uint32_t Task0729_VoltsToMicrovolts(float volts);
+static void USB_PublishAnalysisResult(
+    const AD9220_SpectrumResult *spectrum,
+    uint32_t input_sample_count);
 static void Task0729_ConvertToSpectrum(
     const Task0729_Result *source,
     uint32_t bad_sample_count,
@@ -756,6 +759,7 @@ static void ScopeApp_ProcessCompletedCapture(void)
           analysis_time_us,
           &spectrum_result);
       AdcSpectrumResult = spectrum_result;
+      USB_PublishAnalysisResult(&spectrum_result, copied);
       __DMB();
       AdcSpectrumReady = 1U;
     }
@@ -869,6 +873,65 @@ static uint32_t Task0729_VoltsToMicrovolts(float volts)
   return (uint32_t)(volts * 1000000.0F + 0.5F);
 }
 
+static void USB_PublishAnalysisResult(
+    const AD9220_SpectrumResult *spectrum,
+    uint32_t input_sample_count)
+{
+  AppUsbAnalysisResult usb_result;
+  uint8_t component_count;
+
+  if (spectrum == NULL)
+  {
+    return;
+  }
+
+  memset(&usb_result, 0, sizeof(usb_result));
+  usb_result.analysis_sequence = spectrum->sequence;
+  usb_result.timestamp_ms = HAL_GetTick();
+  usb_result.status_flags =
+      (spectrum->valid != 0U) ? APP_USB_RESULT_FLAG_VALID : 0U;
+  usb_result.adc_sample_rate_hz = AD9220_GetSampleRateHz();
+  usb_result.processing_sample_rate_hz = spectrum->sample_rate_hz;
+  usb_result.input_sample_count = input_sample_count;
+  usb_result.fft_size = spectrum->fft_size;
+  usb_result.fundamental_millihz = spectrum->fundamental_millihz;
+  usb_result.vpp_uv =
+      Task0729_VoltsToMicrovolts(TaskProcessorResult.vpp);
+  usb_result.vrms_uv =
+      Task0729_VoltsToMicrovolts(TaskProcessorResult.vrms);
+  usb_result.thd_ppm = spectrum->thd_ppm;
+  usb_result.bad_sample_count = spectrum->bad_sample_count;
+  usb_result.analysis_time_us = spectrum->analysis_time_us;
+  usb_result.mode = (uint8_t)TASK0729_MODE_QUESTION_3;
+  usb_result.periods = 1U;
+
+  component_count = TaskProcessorResult.component_count;
+  if (component_count > APP_USB_ANALYSIS_COMPONENTS)
+  {
+    component_count = APP_USB_ANALYSIS_COMPONENTS;
+  }
+  usb_result.component_count = component_count;
+
+  for (uint8_t index = 0U;
+       index < APP_USB_ANALYSIS_COMPONENTS;
+       ++index)
+  {
+    usb_result.component[index].harmonic_order =
+        TaskProcessorResult.harmonic_order[index];
+    usb_result.component[index].frequency_millihz =
+        (uint32_t)(TaskProcessorResult.frequency_hz[index] *
+                   1000.0F + 0.5F);
+    usb_result.component[index].measured_amplitude_uvpk =
+        Task0729_VoltsToMicrovolts(
+            TaskProcessorResult.amplitude_vpk[index]);
+    usb_result.component[index].setting_amplitude_uvpk =
+        Task0729_VoltsToMicrovolts(
+            TaskProcessorResult.amplitude_setting_vpk[index]);
+  }
+
+  (void)APP_USB_DevicePublishAnalysis(&usb_result);
+}
+
 void AD9220_CaptureCompleteCallback(void)
 {
   AdcCaptureDone = 1U;
@@ -879,14 +942,17 @@ static void UART_PollScopeCommands(void)
   static char command_buffer[64];
   static uint32_t command_length;
   uint8_t received;
+  uint32_t receive_budget = 64U;
 
   if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE) != RESET)
   {
     __HAL_UART_CLEAR_OREFLAG(&huart1);
   }
 
-  while (HAL_UART_Receive(&huart1, &received, 1U, 0U) == HAL_OK)
+  while ((receive_budget != 0U) &&
+         (HAL_UART_Receive(&huart1, &received, 1U, 0U) == HAL_OK))
   {
+    --receive_budget;
     if ((received == '\r') || (received == '\n'))
     {
       if (command_length != 0U)
@@ -1018,7 +1084,7 @@ static void UART_SendText(const char *text)
   size_t length = strlen(text);
   if ((length > 0U) &&
       (HAL_UART_Transmit(&huart1, (const uint8_t *)text,
-                         (uint16_t)length, 200U) != HAL_OK))
+                          (uint16_t)length, 20U) != HAL_OK))
   {
     ++AdcUartErrorCount;
   }

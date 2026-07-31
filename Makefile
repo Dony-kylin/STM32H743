@@ -41,6 +41,14 @@ Core/Src/gpio.c \
 Core/Src/quadspi.c \
 Core/Src/spi.c \
 Core/Src/usart.c \
+USB_DEVICE/App/usb_device.c \
+USB_DEVICE/App/usbd_desc.c \
+USB_DEVICE/App/usbd_cdc_if.c \
+USB_DEVICE/Target/usbd_conf.c \
+Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c \
+Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c \
+Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c \
+Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
 Core/Src/stm32h7xx_it.c \
 Core/Src/stm32h7xx_hal_msp.c \
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c \
@@ -72,10 +80,15 @@ Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c \
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c \
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.c \
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pcd.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pcd_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_usb.c \
 Core/Src/system_stm32h7xx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c \
 Core/Src/scope_app.c \
+Core/Src/app_usb_protocol.c \
+Core/Src/app_usb_device.c \
 Expand/Src/ad9220.c \
 Expand/Src/ad9220_spectrum.c \
 Expand/Src/task0729_processor.c \
@@ -153,7 +166,11 @@ C_INCLUDES =  \
 -IDrivers/CMSIS/Device/ST/STM32H7xx/Include \
 -IDrivers/CMSIS/Include \
 -IExpand/Inc \
--IExpand/Generated/Task0729
+-IExpand/Generated/Task0729 \
+-IUSB_DEVICE/App \
+-IUSB_DEVICE/Target \
+-IMiddlewares/ST/STM32_USB_Device_Library/Core/Inc \
+-IMiddlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
 
 
 # compile gcc flags

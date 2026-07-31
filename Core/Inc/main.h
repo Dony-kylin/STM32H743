@@ -65,8 +65,6 @@ void Error_Handler(void);
 #define AD7606_OS1_GPIO_Port GPIOC
 #define AD7606_OS2_Pin GPIO_PIN_3
 #define AD7606_OS2_GPIO_Port GPIOC
-#define LED3_Pin GPIO_PIN_2
-#define LED3_GPIO_Port GPIOA
 #define AD7606_SPI_SCK_Pin GPIO_PIN_5
 #define AD7606_SPI_SCK_GPIO_Port GPIOA
 #define AD7606_SPI_MISO_Pin GPIO_PIN_6
@@ -78,14 +76,10 @@ void Error_Handler(void);
 #define AD7606_BUSY_Pin GPIO_PIN_0
 #define AD7606_BUSY_GPIO_Port GPIOB
 #define AD7606_BUSY_EXTI_IRQn EXTI0_IRQn
-#define USER_LED_Pin GPIO_PIN_7
-#define USER_LED_GPIO_Port GPIOG
+#define RUN_LED_Pin GPIO_PIN_7
+#define RUN_LED_GPIO_Port GPIOG
 #define AD7606_CONVST_AB_Pin GPIO_PIN_8
 #define AD7606_CONVST_AB_GPIO_Port GPIOA
-#define LED2_Pin GPIO_PIN_11
-#define LED2_GPIO_Port GPIOA
-#define LED1_Pin GPIO_PIN_12
-#define LED1_GPIO_Port GPIOA
 #define AD7606_NOE_RD_Pin GPIO_PIN_4
 #define AD7606_NOE_RD_GPIO_Port GPIOD
 #define AD7606_NE1_CS_Pin GPIO_PIN_7

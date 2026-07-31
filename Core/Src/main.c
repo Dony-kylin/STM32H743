@@ -21,11 +21,13 @@
 #include "quadspi.h"
 #include "spi.h"
 #include "usart.h"
+#include "usb_device.h"
 #include "gpio.h"
 #include "scope_app.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "app_usb_device.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define RUN_LED_TOGGLE_PERIOD_MS 500U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,12 +55,24 @@
 void SystemClock_Config(void);
 static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
-
+static void RunLed_Process(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #include <stdio.h>
+
+static void RunLed_Process(void)
+{
+  static uint32_t last_toggle_tick;
+  uint32_t now = HAL_GetTick();
+
+  if ((uint32_t)(now - last_toggle_tick) >= RUN_LED_TOGGLE_PERIOD_MS)
+  {
+    last_toggle_tick = now;
+    HAL_GPIO_TogglePin(RUN_LED_GPIO_Port, RUN_LED_Pin);
+  }
+}
 
 /**
   * @brief  重定向 printf 输出到 USART1 (PA9/TX)
@@ -67,13 +81,33 @@ static void MPU_Config(void);
   */
 int __io_putchar(int ch)
 {
+  uint32_t timeout;
+
   /* 将换行符 \n 转换为 \r\n 以兼容串口终端 */
   if (ch == '\n')
   {
-    while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+    timeout = 1000000U;
+    while (((USART1->ISR & USART_ISR_TXE_TXFNF) == 0U) &&
+           (timeout != 0U))
+    {
+      --timeout;
+    }
+    if (timeout == 0U)
+    {
+      return EOF;
+    }
     USART1->TDR = '\r';
   }
-  while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {}
+  timeout = 1000000U;
+  while (((USART1->ISR & USART_ISR_TXE_TXFNF) == 0U) &&
+         (timeout != 0U))
+  {
+    --timeout;
+  }
+  if (timeout == 0U)
+  {
+    return EOF;
+  }
   USART1->TDR = ch;
   return ch;
 }
@@ -84,7 +118,17 @@ int __io_putchar(int ch)
   */
 int __io_getchar(void)
 {
-  while (!(USART1->ISR & USART_ISR_RXNE_RXFNE)) {}
+  uint32_t timeout = 1000000U;
+
+  while (((USART1->ISR & USART_ISR_RXNE_RXFNE) == 0U) &&
+         (timeout != 0U))
+  {
+    --timeout;
+  }
+  if (timeout == 0U)
+  {
+    return EOF;
+  }
   return (int)(USART1->RDR & 0xFF);
 }
 
@@ -125,7 +169,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  APP_USB_DeviceInit();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -133,20 +177,27 @@ int main(void)
   MX_QUADSPI_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   {
     static const uint8_t boot_message[] = "#BOOT UART OK\r\n";
     (void)HAL_UART_Transmit(&huart1, boot_message,
                             (uint16_t)(sizeof(boot_message) - 1U),
-                            100U);
+                             100U);
   }
-  /* USER CODE END 2 */
-
   ScopeApp_Init();
+  /* USER CODE END 2 */
 
   while (1)
   {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+    RunLed_Process();
+    APP_USB_DeviceProcess();
     ScopeApp_Process();
+    APP_USB_DeviceProcess();
+    /* USER CODE END 3 */
   }
 }
 
@@ -158,6 +209,8 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+  uint32_t voltage_ready_timeout = 1000000U;
 
   /** Supply configuration update enable
   */
@@ -167,13 +220,23 @@ void SystemClock_Config(void)
   */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+  while ((__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY) == 0U) &&
+         (voltage_ready_timeout != 0U))
+  {
+    --voltage_ready_timeout;
+  }
+  if (voltage_ready_timeout == 0U)
+  {
+    Error_Handler();
+  }
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType =
+      RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 5;
@@ -203,6 +266,13 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
@@ -271,11 +341,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
-  }
+  NVIC_SystemReset();
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
