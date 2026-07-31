@@ -76,7 +76,14 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle)
   /** Initializes the peripherals clock
   */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
-    PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+    PeriphClkInitStruct.PLL3.PLL3M = 25;
+    PeriphClkInitStruct.PLL3.PLL3N = 336;
+    PeriphClkInitStruct.PLL3.PLL3P = 2;
+    PeriphClkInitStruct.PLL3.PLL3Q = 7;
+    PeriphClkInitStruct.PLL3.PLL3R = 2;
+    PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
+    PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
+    PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL3;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
     {
       Error_Handler();
@@ -102,7 +109,6 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle)
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
     /* Peripheral interrupt init */
-    /* Keep ADC DMA (priority 6) above USB traffic. */
     HAL_NVIC_SetPriority(OTG_FS_IRQn, 8, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
   /* USER CODE BEGIN USB_OTG_FS_MspInit 1 */

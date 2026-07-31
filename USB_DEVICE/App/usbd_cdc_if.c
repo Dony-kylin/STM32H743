@@ -303,12 +303,6 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
   return result;
 }
 
-uint8_t CDC_IsReady_FS(void)
-{
-  return ((hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED) &&
-          (hUsbDeviceFS.pClassData != NULL)) ? 1U : 0U;
-}
-
 /**
   * @brief  CDC_TransmitCplt_FS
   *         Data transmitted callback
@@ -334,6 +328,12 @@ static int8_t CDC_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
+
+uint8_t CDC_IsReady_FS(void)
+{
+  return ((hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED) &&
+          (hUsbDeviceFS.pClassData != NULL)) ? 1U : 0U;
+}
 
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 

@@ -57,43 +57,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define AD7606_RST_Pin GPIO_PIN_0
-#define AD7606_RST_GPIO_Port GPIOC
-#define AD7606_OS0_Pin GPIO_PIN_1
-#define AD7606_OS0_GPIO_Port GPIOC
-#define AD7606_OS1_Pin GPIO_PIN_2
-#define AD7606_OS1_GPIO_Port GPIOC
-#define AD7606_OS2_Pin GPIO_PIN_3
-#define AD7606_OS2_GPIO_Port GPIOC
-#define AD7606_SPI_SCK_Pin GPIO_PIN_5
-#define AD7606_SPI_SCK_GPIO_Port GPIOA
-#define AD7606_SPI_MISO_Pin GPIO_PIN_6
-#define AD7606_SPI_MISO_GPIO_Port GPIOA
-#define AD7606_RANGE_Pin GPIO_PIN_4
-#define AD7606_RANGE_GPIO_Port GPIOC
-#define AD7606_FRSTDATA_Pin GPIO_PIN_5
-#define AD7606_FRSTDATA_GPIO_Port GPIOC
-#define AD7606_BUSY_Pin GPIO_PIN_0
-#define AD7606_BUSY_GPIO_Port GPIOB
-#define AD7606_BUSY_EXTI_IRQn EXTI0_IRQn
-#define RUN_LED_Pin GPIO_PIN_7
-#define RUN_LED_GPIO_Port GPIOG
-#define AD7606_CONVST_AB_Pin GPIO_PIN_8
-#define AD7606_CONVST_AB_GPIO_Port GPIOA
-#define AD7606_NOE_RD_Pin GPIO_PIN_4
-#define AD7606_NOE_RD_GPIO_Port GPIOD
-#define AD7606_NE1_CS_Pin GPIO_PIN_7
-#define AD7606_NE1_CS_GPIO_Port GPIOD
-#define AD9220_D11_Pin GPIO_PIN_0
-#define AD9220_D11_GPIO_Port GPIOD
-#define AD9220_D0_Pin GPIO_PIN_1
-#define AD9220_D0_GPIO_Port GPIOD
-#define AD9220_D5_Pin GPIO_PIN_8
-#define AD9220_D5_GPIO_Port GPIOD
-#define AD9220_D12_OTR_Pin GPIO_PIN_14
-#define AD9220_D12_OTR_GPIO_Port GPIOD
-#define AD9220_CLK_Pin GPIO_PIN_15
-#define AD9220_CLK_GPIO_Port GPIOD
+#define SPI1_SCK_Pin GPIO_PIN_5
+#define SPI1_SCK_GPIO_Port GPIOA
+#define SPI1_MISO_Pin GPIO_PIN_6
+#define SPI1_MISO_GPIO_Port GPIOA
 #define AD9220_D10_Pin GPIO_PIN_7
 #define AD9220_D10_GPIO_Port GPIOE
 #define AD9220_D1_Pin GPIO_PIN_8
@@ -112,6 +79,33 @@ void Error_Handler(void);
 #define AD9220_D4_GPIO_Port GPIOE
 #define AD9220_D6_Pin GPIO_PIN_15
 #define AD9220_D6_GPIO_Port GPIOE
+#define AD9220_D5_Pin GPIO_PIN_8
+#define AD9220_D5_GPIO_Port GPIOD
+#define AD9220_D12_OTR_Pin GPIO_PIN_14
+#define AD9220_D12_OTR_GPIO_Port GPIOD
+#define AD9220_CLK_Pin GPIO_PIN_15
+#define AD9220_CLK_GPIO_Port GPIOD
+#define RUN_LED_Pin GPIO_PIN_7
+#define RUN_LED_GPIO_Port GPIOG
+#define LCD_NSS_Pin GPIO_PIN_8
+#define LCD_NSS_GPIO_Port GPIOG
+#define AD9220_D11_Pin GPIO_PIN_0
+#define AD9220_D11_GPIO_Port GPIOD
+#define AD9220_D0_Pin GPIO_PIN_1
+#define AD9220_D0_GPIO_Port GPIOD
+#define LCD_BL_Pin GPIO_PIN_12
+#define LCD_BL_GPIO_Port GPIOG
+#define LCD_SCK_Pin GPIO_PIN_13
+#define LCD_SCK_GPIO_Port GPIOG
+#define LCD_MOSI_Pin GPIO_PIN_14
+#define LCD_MOSI_GPIO_Port GPIOG
+#define LCD_DC_Pin GPIO_PIN_15
+#define LCD_DC_GPIO_Port GPIOG
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
 #ifdef __cplusplus
 }
 #endif

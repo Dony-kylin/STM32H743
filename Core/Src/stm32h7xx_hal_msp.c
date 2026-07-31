@@ -69,6 +69,8 @@ void HAL_MspInit(void)
 
   __HAL_RCC_SYSCFG_CLK_ENABLE();
 
+  /* System interrupt init*/
+
   /* USER CODE BEGIN MspInit 1 */
 
   /* USER CODE END MspInit 1 */

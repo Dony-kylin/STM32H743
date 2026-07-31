@@ -20,14 +20,15 @@
 #include "main.h"
 #include "quadspi.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
-#include "scope_app.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app_usb_device.h"
+#include "scope_app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -148,13 +149,13 @@ int main(void)
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
 
+  /* USER CODE BEGIN Cache */
   /*
-   * The generated Simulink processor performs a 4096-point FFT and a
-   * decimation/filtering pass for every completed 16384-sample block.
-   * Keep its instructions in the Cortex-M7 instruction cache; the DMA
-   * capture path does not execute from this cache.
+   * The analysis path performs a 4096-point FFT. Keep instructions cached;
+   * ADC DMA data coherency is handled separately by the acquisition code.
    */
   SCB_EnableICache();
+  /* USER CODE END Cache */
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -174,8 +175,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM4_Init();
   MX_QUADSPI_Init();
   MX_SPI1_Init();
+  MX_SPI6_Init();
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
@@ -188,6 +191,8 @@ int main(void)
   ScopeApp_Init();
   /* USER CODE END 2 */
 
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
@@ -197,8 +202,8 @@ int main(void)
     APP_USB_DeviceProcess();
     ScopeApp_Process();
     APP_USB_DeviceProcess();
-    /* USER CODE END 3 */
   }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -209,8 +214,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  uint32_t voltage_ready_timeout = 1000000U;
 
   /** Supply configuration update enable
   */
@@ -220,23 +223,13 @@ void SystemClock_Config(void)
   */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
-  while ((__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY) == 0U) &&
-         (voltage_ready_timeout != 0U))
-  {
-    --voltage_ready_timeout;
-  }
-  if (voltage_ready_timeout == 0U)
-  {
-    Error_Handler();
-  }
+  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType =
-      RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 5;
@@ -266,13 +259,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
@@ -306,7 +292,6 @@ void MPU_Config(void)
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 

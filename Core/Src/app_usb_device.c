@@ -8,7 +8,8 @@
 #define APP_USB_CONTROL_DEPTH      4U
 #define APP_USB_TX_BUSY_RETRY_MS   1U
 #define APP_USB_TX_ERROR_RETRY_MS  10U
-#define APP_USB_RESULT_FORMAT      1U
+#define APP_USB_STATUS_FORMAT      1U
+#define APP_USB_ANALYSIS_PAYLOAD_SIZE 53U
 #define APP_USB_RX_PROCESS_BUDGET  256U
 
 #if ((APP_USB_RX_RING_SIZE & (APP_USB_RX_RING_SIZE - 1U)) != 0U)
@@ -49,6 +50,13 @@ static uint8_t result_next_index;
 static uint8_t result_inflight_index;
 static uint32_t result_overwrites;
 static uint32_t last_analysis_sequence;
+static uint32_t last_result_tick_ms;
+static uint32_t last_adc_sample_rate_hz;
+static uint32_t last_processing_sample_rate_hz;
+static uint32_t last_input_sample_count;
+static uint32_t last_fft_size;
+static uint32_t last_bad_sample_count;
+static uint32_t last_analysis_time_us;
 
 static volatile uint8_t tx_complete;
 static uint8_t tx_busy;
@@ -87,6 +95,13 @@ void APP_USB_DeviceInit(void)
   result_inflight_index = 0U;
   result_overwrites = 0U;
   last_analysis_sequence = 0U;
+  last_result_tick_ms = 0U;
+  last_adc_sample_rate_hz = 0U;
+  last_processing_sample_rate_hz = 0U;
+  last_input_sample_count = 0U;
+  last_fft_size = 0U;
+  last_bad_sample_count = 0U;
+  last_analysis_time_us = 0U;
   tx_complete = 0U;
   tx_busy = 0U;
   tx_source = APP_USB_TX_NONE;
@@ -171,9 +186,9 @@ static void send_ack(const AppUsbFrame *request, AppUsbAckCode code)
 
 static void send_status(uint16_t sequence)
 {
-  uint8_t payload[36];
+  uint8_t payload[64];
 
-  payload[0] = 1U;
+  payload[0] = APP_USB_STATUS_FORMAT;
   payload[1] = stream_enabled;
   payload[2] = CDC_IsReady_FS();
   payload[3] = tx_busy;
@@ -185,6 +200,13 @@ static void send_status(uint16_t sequence)
   write_u32(&payload[24], tx_errors);
   write_u32(&payload[28], result_overwrites);
   write_u32(&payload[32], last_analysis_sequence);
+  write_u32(&payload[36], last_result_tick_ms);
+  write_u32(&payload[40], last_adc_sample_rate_hz);
+  write_u32(&payload[44], last_processing_sample_rate_hz);
+  write_u32(&payload[48], last_input_sample_count);
+  write_u32(&payload[52], last_fft_size);
+  write_u32(&payload[56], last_bad_sample_count);
+  write_u32(&payload[60], last_analysis_time_us);
   (void)queue_control_frame(APP_USB_MSG_STATUS, sequence,
                             payload, sizeof(payload));
 }
@@ -241,7 +263,8 @@ static uint16_t encode_analysis_payload(
   uint16_t offset = 0U;
   uint8_t component_count;
 
-  if ((result == NULL) || (payload == NULL) || (capacity < 104U))
+  if ((result == NULL) || (payload == NULL) ||
+      (capacity < APP_USB_ANALYSIS_PAYLOAD_SIZE))
   {
     return 0U;
   }
@@ -252,9 +275,7 @@ static uint16_t encode_analysis_payload(
     component_count = APP_USB_ANALYSIS_COMPONENTS;
   }
 
-  payload[offset++] = APP_USB_RESULT_FORMAT;
   payload[offset++] = result->mode;
-  payload[offset++] = result->periods;
   payload[offset++] = component_count;
 
 #define APP_USB_PUT_U32(value_)                    \
@@ -264,24 +285,16 @@ static uint16_t encode_analysis_payload(
     offset = (uint16_t)(offset + sizeof(uint32_t)); \
   } while (0)
 
-  APP_USB_PUT_U32(result->analysis_sequence);
-  APP_USB_PUT_U32(result->timestamp_ms);
   APP_USB_PUT_U32(result->status_flags);
-  APP_USB_PUT_U32(result->adc_sample_rate_hz);
-  APP_USB_PUT_U32(result->processing_sample_rate_hz);
-  APP_USB_PUT_U32(result->input_sample_count);
-  APP_USB_PUT_U32(result->fft_size);
+  APP_USB_PUT_U32(result->analysis_sequence);
   APP_USB_PUT_U32(result->fundamental_millihz);
   APP_USB_PUT_U32(result->vpp_uv);
   APP_USB_PUT_U32(result->vrms_uv);
   APP_USB_PUT_U32(result->thd_ppm);
-  APP_USB_PUT_U32(result->bad_sample_count);
-  APP_USB_PUT_U32(result->analysis_time_us);
 
   for (uint8_t index = 0U; index < APP_USB_ANALYSIS_COMPONENTS; ++index)
   {
-    APP_USB_PUT_U32(result->component[index].harmonic_order);
-    APP_USB_PUT_U32(result->component[index].frequency_millihz);
+    payload[offset++] = (uint8_t)result->component[index].harmonic_order;
     APP_USB_PUT_U32(result->component[index].measured_amplitude_uvpk);
     APP_USB_PUT_U32(result->component[index].setting_amplitude_uvpk);
   }
@@ -340,6 +353,13 @@ bool APP_USB_DevicePublishAnalysis(const AppUsbAnalysisResult *result)
   result_pending_index = write_index;
   result_pending_valid = 1U;
   last_analysis_sequence = result->analysis_sequence;
+  last_result_tick_ms = result->timestamp_ms;
+  last_adc_sample_rate_hz = result->adc_sample_rate_hz;
+  last_processing_sample_rate_hz = result->processing_sample_rate_hz;
+  last_input_sample_count = result->input_sample_count;
+  last_fft_size = result->fft_size;
+  last_bad_sample_count = result->bad_sample_count;
+  last_analysis_time_us = result->analysis_time_us;
   return true;
 }
 

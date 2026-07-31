@@ -81,8 +81,6 @@ static void Fault_UART_Send(const char *text)
 
 /* External variables --------------------------------------------------------*/
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
-
-/* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
@@ -113,7 +111,11 @@ void HardFault_Handler(void)
   /* USER CODE BEGIN HardFault_IRQn 0 */
   Fault_UART_Send("#FAULT HARD\r\n");
   /* USER CODE END HardFault_IRQn 0 */
-  NVIC_SystemReset();
+  while (1)
+  {
+    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+    /* USER CODE END W1_HardFault_IRQn 0 */
+  }
 }
 
 /**
@@ -124,7 +126,11 @@ void MemManage_Handler(void)
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
   Fault_UART_Send("#FAULT MPU\r\n");
   /* USER CODE END MemoryManagement_IRQn 0 */
-  NVIC_SystemReset();
+  while (1)
+  {
+    /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
+    /* USER CODE END W1_MemoryManagement_IRQn 0 */
+  }
 }
 
 /**
@@ -135,7 +141,11 @@ void BusFault_Handler(void)
   /* USER CODE BEGIN BusFault_IRQn 0 */
   Fault_UART_Send("#FAULT BUS\r\n");
   /* USER CODE END BusFault_IRQn 0 */
-  NVIC_SystemReset();
+  while (1)
+  {
+    /* USER CODE BEGIN W1_BusFault_IRQn 0 */
+    /* USER CODE END W1_BusFault_IRQn 0 */
+  }
 }
 
 /**
@@ -146,7 +156,11 @@ void UsageFault_Handler(void)
   /* USER CODE BEGIN UsageFault_IRQn 0 */
   Fault_UART_Send("#FAULT USAGE\r\n");
   /* USER CODE END UsageFault_IRQn 0 */
-  NVIC_SystemReset();
+  while (1)
+  {
+    /* USER CODE BEGIN W1_UsageFault_IRQn 0 */
+    /* USER CODE END W1_UsageFault_IRQn 0 */
+  }
 }
 
 /**
@@ -188,7 +202,13 @@ void TIM6_DAC_IRQHandler(void)
   */
 void OTG_FS_IRQHandler(void)
 {
+  /* USER CODE BEGIN OTG_FS_IRQn 0 */
+
+  /* USER CODE END OTG_FS_IRQn 0 */
   HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
+  /* USER CODE BEGIN OTG_FS_IRQn 1 */
+
+  /* USER CODE END OTG_FS_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

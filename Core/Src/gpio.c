@@ -55,15 +55,69 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
-  /* Keep the run LED off until the main loop starts its heartbeat. */
-  HAL_GPIO_WritePin(RUN_LED_GPIO_Port, RUN_LED_Pin, GPIO_PIN_RESET);
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOG, RUN_LED_Pin|LCD_BL_Pin|LCD_DC_Pin, GPIO_PIN_RESET);
 
-  /* Configure PG7 as the non-blocking run indicator. */
-  GPIO_InitStruct.Pin = RUN_LED_Pin;
+  /*Configure GPIO pin : PF0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC0 PC1 PC2 PC3
+                           PC4 PC5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
+                          |GPIO_PIN_4|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : AD9220_D10_Pin AD9220_D1_Pin AD9220_D9_Pin AD9220_D2_Pin
+                           AD9220_D8_Pin AD9220_D3_Pin AD9220_D7_Pin AD9220_D4_Pin
+                           AD9220_D6_Pin */
+  GPIO_InitStruct.Pin = AD9220_D10_Pin|AD9220_D1_Pin|AD9220_D9_Pin|AD9220_D2_Pin
+                          |AD9220_D8_Pin|AD9220_D3_Pin|AD9220_D7_Pin|AD9220_D4_Pin
+                          |AD9220_D6_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : AD9220_D5_Pin AD9220_D12_OTR_Pin AD9220_D11_Pin AD9220_D0_Pin */
+  GPIO_InitStruct.Pin = AD9220_D5_Pin|AD9220_D12_OTR_Pin|AD9220_D11_Pin|AD9220_D0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PD9 PD10 PD4 PD7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_4|GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : AD9220_CLK_Pin */
+  GPIO_InitStruct.Pin = AD9220_CLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(AD9220_CLK_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : RUN_LED_Pin LCD_BL_Pin LCD_DC_Pin */
+  GPIO_InitStruct.Pin = RUN_LED_Pin|LCD_BL_Pin|LCD_DC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RUN_LED_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
