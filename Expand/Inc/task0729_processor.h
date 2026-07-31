@@ -57,6 +57,14 @@ typedef struct
 void Task0729_Init(void);
 
 /*
+ * Selects the final generator calibration fitted from the measured table.
+ * 0: keep raw measured values; nonzero: output fitted values.
+ * The Task0729_Process() call signature therefore remains unchanged.
+ */
+void Task0729_SetGeneratorCorrection(uint8_t enable);
+uint8_t Task0729_GetGeneratorCorrection(void);
+
+/*
  * Processes one complete 8 MHz AD9220 block.
  *
  * samples:

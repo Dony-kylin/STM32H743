@@ -28,7 +28,6 @@ typedef struct {
 } DW_G_Export_V4_T;
 
 typedef struct {
-  real32_T FIR__FILT[64];
   real32_T Hann_WindowSamples[16384];
   real32_T u096FFT_TwiddleTable[12288];
 } ConstP_G_Export_V4_T;
@@ -37,6 +36,7 @@ typedef struct {
   int16_T adc_block[16384];
   uint8_T mode;
   uint8_T periods;
+  uint8_T generator_correction_enable;
 } ExtU_G_Export_V4_T;
 
 typedef struct {
@@ -50,12 +50,28 @@ typedef struct {
   real32_T waveform[600];
   uint16_T waveCount;
   real32_T amplitude_SettingVpk[3];
+  real32_T generator_correction_gain;
 } ExtY_G_Export_V4_T;
 
+struct P_G_Export_V4_T_ {
+  real32_T Q15ADC_Gain;
+  real32_T FIR__FILT[64];
+  real32_T _Value;
+  real32_T _waveform_Gain;
+  real32_T _amplitude_Vpk_Gain;
+  real32_T _amplitude_SettingVpk_Gain;
+  real32_T _Vpp_Gain;
+  real32_T _Vrms_Gain;
+  boolean_T frame_valid_Value;
+  uint8_T _Threshold;
+};
+
+typedef struct P_G_Export_V4_T_ P_G_Export_V4_T;
 struct tag_RTM_G_Export_V4_T {
   const char_T * volatile errorStatus;
 };
 
+extern P_G_Export_V4_T G_Export_V4_P;
 extern B_G_Export_V4_T G_Export_V4_B;
 extern DW_G_Export_V4_T G_Export_V4_DW;
 extern ExtU_G_Export_V4_T G_Export_V4_U;
