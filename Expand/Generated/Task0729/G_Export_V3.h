@@ -5,8 +5,6 @@
 #include "rtwtypes.h"
 #endif
 
-#include "G_Export_V3_types.h"
-
 #ifndef rtmGetErrorStatus
 #define rtmGetErrorStatus(rtm)         ((rtm)->errorStatus)
 #endif
@@ -15,6 +13,7 @@
 #define rtmSetErrorStatus(rtm, val)    ((rtm)->errorStatus = (val))
 #endif
 
+typedef struct tag_RTM_G_Export_V3_T RT_MODEL_G_Export_V3_T;
 typedef struct {
   creal32_T u096FFT[16384];
   real32_T FIR_[16384];
