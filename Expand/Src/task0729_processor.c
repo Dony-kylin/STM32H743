@@ -7,6 +7,7 @@
 
 #define TASK0729_FIT_MAX_TERMS \
   (1U + (2U * TASK0729_COMPONENT_COUNT))
+/* 生成模型内部把ADC电压按4倍前端增益换算回输入。 */
 #define TASK0729_GENERATED_FRONTEND_GAIN 4.0F
 #define TASK0729_TWO_PI 6.28318530717958647692
 #define TASK0729_FIT_PIVOT_EPSILON 1.0E-8
@@ -95,12 +96,15 @@ uint8_t Task0729_Process(
     return 0U;
   }
 
+  /* 1. 把一整帧ADC数据交给Simulink生成代码。 */
   memcpy(G_Export_V4_U.adc_block, samples,
          sizeof(G_Export_V4_U.adc_block));
   G_Export_V4_U.mode = (uint8_T)mode;
   G_Export_V4_U.periods = periods;
+  /* 2. 执行FFT、谐波提取和题目3的抗干扰处理。 */
   G_Export_V4_step();
 
+  /* 3. 先把模型输出换算成实际输入端电压。 */
   output_scale = Task0729_OutputScaleCorrection();
   memset(current, 0, sizeof(*current));
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
@@ -135,6 +139,7 @@ uint8_t Task0729_Process(
   }
 
   /*
+   * 4. 用原始ADC整帧重新拟合幅值，减少FFT栅栏误差。
    * Jointly refit all detected tones against the original 8 MSPS block.
    * This reduces cross-talk between strong adjacent components and removes
    * DC-offset bias.  Keep Vpp, Vrms and waveform from the generated path so
@@ -236,6 +241,7 @@ float Task0729_SampleToInputVolts(int16_t sample)
 
 static float Task0729_OutputScaleCorrection(void)
 {
+  /* 实测前端增益在头文件中改；这里不要改生成模型的4.0。 */
   float gain = TASK0729_FRONTEND_GAIN;
 
   if (!(gain > 0.0F))
@@ -382,6 +388,7 @@ static uint8_t Task0729_RefineAmplitudes(
   double maximum = 0.0;
   double square_sum = 0.0;
 
+  /* 用直流项+每个频率的正弦/余弦项做最小二乘拟合。 */
   memset(&task0729_fit, 0, sizeof(task0729_fit));
 
   for (result_index = 0U;
