@@ -391,12 +391,14 @@ uint32_t AD9220_CopySignedSamples(int16_t *destination,
 
   for (uint32_t i = 0U; i < count; ++i)
   {
+    /* 先跳过AD9220流水线延迟，再拼出12位并行数据。 */
     uint32_t source_index = i + AD9220_PIPELINE_DELAY;
     uint32_t gpio_snapshot =
         (port_d[source_index] << AD9220_PORT_D_SHIFT) |
         (port_e[source_index] & 0xFFFFU);
     uint16_t raw = AD9220_PackSample(gpio_snapshot);
 
+    /* 2048去中点；乘16把12位有符号码放大成FFT需要的Q15。 */
     destination[i] = (int16_t)(((int32_t)raw - 2048) << 4);
     if ((gpio_snapshot & AD9220_OTR_MASK) != 0U)
     {
