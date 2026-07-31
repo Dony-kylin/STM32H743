@@ -625,7 +625,7 @@ void ScopeApp_Init(void)
   UART_SendText(
       "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz "
       "PROC=8000000Hz FFT=16384 DECIM=1 SIMULINK=1 "
-      "ICACHE=ON DCACHE=ON OPT=O3 PIPE=ON\r\n");
+      "SEARCH=8-510kHz ICACHE=ON DCACHE=ON OPT=O3 PIPE=ON\r\n");
 
   AD9220_PrepareAcquisition();
 }

@@ -5,6 +5,9 @@
 
 #define G_Export_V3_Fs                 (8.0E+6)
 #define G_Export_V3_NFFT               (16384.0)
+#define TASK0729_SEARCH_MIN_HZ         (8000.0F)
+#define TASK0729_SEARCH_MAX_Q1_HZ      (205000.0F)
+#define TASK0729_SEARCH_MAX_Q23_HZ     (510000.0F)
 
 #if defined(__GNUC__)
 #define TASK0729_AXI_RAM \
@@ -6202,17 +6205,27 @@ void G_Export_V3_step(void)
   bestScore[2] = 0.0F;
   bestBin[2] = 0.0F;
   if (G_Export_V3_U.mode == 1) {
-    b_y1 = 200000.0F;
+    b_y1 = TASK0729_SEARCH_MAX_Q1_HZ;
   } else {
-    b_y1 = 500000.0F;
+    b_y1 = TASK0729_SEARCH_MAX_Q23_HZ;
   }
 
-  i = (int32_T)ceil(b_y1 * G_Export_V3_NFFT / G_Export_V3_Fs);
-  for (imax = 0; imax <= i - 20; imax++) {
-    cw = G_Export_V3_B.Hann[imax + 21];
-    ys = G_Export_V3_B.Hann[imax + 20];
+  imax = (int32_T)ceil(TASK0729_SEARCH_MIN_HZ *
+    G_Export_V3_NFFT / G_Export_V3_Fs);
+  i = (int32_T)floor(b_y1 * G_Export_V3_NFFT / G_Export_V3_Fs);
+  if (imax < 1) {
+    imax = 1;
+  }
+
+  if (i > 8191) {
+    i = 8191;
+  }
+
+  for (; imax <= i; imax++) {
+    cw = G_Export_V3_B.Hann[imax];
+    ys = G_Export_V3_B.Hann[imax - 1];
     if (cw >= ys) {
-      y = G_Export_V3_B.Hann[imax + 22];
+      y = G_Export_V3_B.Hann[imax + 1];
       if (cw > y) {
         b_y1 = logf(fmaxf(ys, 1.0E-30F));
         y3 = logf(fmaxf(y, 1.0E-30F));
@@ -6236,7 +6249,7 @@ void G_Export_V3_step(void)
               }
 
               bestScore[imin] = y3;
-              bestBin[imin] = (((real32_T)imax + 22.0F) - 1.0F) + b_y1;
+              bestBin[imin] = (real32_T)imax + b_y1;
               exitg1 = true;
             } else {
               imin++;
