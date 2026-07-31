@@ -55,6 +55,7 @@ typedef struct
 #define AD9220_DUMP_BUFFER_SIZE       512U
 #define AD9220_SPECTRUM_UART_BUFFER_SIZE 512U
 #define AD9220_UART_MEASURE_PERIOD_MS 5000U
+#define AD9220_UART_FFT_PERIOD_MS       250U
 #define AD9220_FULL_SCALE_MV          2500U
 #define AD9220_CAPTURE_RAM \
   __attribute__((section(".scope_ram"), aligned(32)))
@@ -579,6 +580,7 @@ static Task0729_Result TaskProcessorResult;
 static uint32_t TaskProcessorSequence;
 static char UartStatusBuffer[512];
 static uint32_t AdcLastMeasurementTick;
+static uint32_t AdcLastSpectrumUartTick;
 static void AD9220_PrepareAcquisition(void);
 static void ScopeApp_ProcessAcquisition(void);
 static void ScopeApp_ProcessCompletedCapture(void);
@@ -622,7 +624,8 @@ void ScopeApp_Init(void)
   HAL_Delay(20U);
   UART_SendText(
       "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz "
-      "PROC=8000000Hz FFT=16384 DECIM=1 SIMULINK=1 ICACHE=ON\r\n");
+      "PROC=8000000Hz FFT=16384 DECIM=1 SIMULINK=1 "
+      "ICACHE=ON DCACHE=ON OPT=O3 PIPE=ON\r\n");
 
   AD9220_PrepareAcquisition();
 }
@@ -650,12 +653,14 @@ void ScopeApp_Process(void)
 
   if (AdcSpectrumReady != 0U)
   {
-    if (UartStreamEnabled != 0U)
+    if ((UartStreamEnabled != 0U) &&
+        ((now - AdcLastSpectrumUartTick) >=
+         AD9220_UART_FFT_PERIOD_MS))
     {
+      AdcLastSpectrumUartTick = now;
       UART_SendSpectrumSummary();
     }
     AdcSpectrumReady = 0U;
-    return;
   }
 
   if ((UartStreamEnabled != 0U) &&
@@ -722,6 +727,7 @@ static void ScopeApp_ProcessCompletedCapture(void)
   uint32_t analysis_start_cycles;
   uint32_t copied;
   uint32_t bad_sample_count;
+  uint32_t completed_overrange_count;
 
   copied = AD9220_CopySignedSamples(
       AdcCaptureSamples, AD9220_CAPTURE_SAMPLES);
@@ -733,12 +739,34 @@ static void ScopeApp_ProcessCompletedCapture(void)
     return;
   }
   AdcDmaDoneMask = AD9220_GetDmaDoneMask();
+  completed_overrange_count = AD9220_GetOverrangeCount();
+
+  /*
+   * The completed data is now private in AdcCaptureSamples. Start the next
+   * DMA block before repair/FFT so its 2.048 ms acquisition overlaps the
+   * much longer analysis instead of extending the result period.
+   */
+  AdcCaptureDone = 0U;
+  if (AD9220_StartCapture(AD9220_CAPTURE_SAMPLES) ==
+      AD9220_STATUS_OK)
+  {
+    AdcCaptureStartTick = HAL_GetTick();
+    AdcCaptureActive = 1U;
+  }
+  else
+  {
+    ++AdcReadErrorCount;
+    AD9220_PrepareAcquisition();
+  }
 
   bad_sample_count = AD9220_SpectrumRepairSamples(
       AdcCaptureSamples, copied);
   AdcBadSampleCount += bad_sample_count;
-  AD7606_ScopePushSamples(AdcCaptureSamples, copied,
-                          AD9220_GetSampleRateHz());
+  if (AdcSpectrumEnabled == 0U)
+  {
+    AD7606_ScopePushSamples(AdcCaptureSamples, copied,
+                            AD9220_GetSampleRateHz());
+  }
 
   if (AdcSpectrumEnabled != 0U)
   {
@@ -783,7 +811,7 @@ static void ScopeApp_ProcessCompletedCapture(void)
     frame.raw = (uint16_t)raw;
   }
   frame.overrange =
-      (AD9220_GetOverrangeCount() != 0U) ? 1U : 0U;
+      (completed_overrange_count != 0U) ? 1U : 0U;
   frame.reserved[0] = 0U;
   frame.reserved[1] = 0U;
   frame.reserved[2] = 0U;
@@ -1106,7 +1134,7 @@ static void UART_SendScopeStatus(void)
   uint32_t clock_level;
   size_t offset = 0U;
 
-  sample_rate_hz = AD7606_ScopeGetInputSampleRateHz();
+  sample_rate_hz = AD9220_GetSampleRateHz();
   target_rate_hz = AD9220_GetSampleRateHz();
   overrun_count = AD9220_GetOverrangeCount();
   glitch_correction_count = AD9220_GetGlitchCorrectionCount();
@@ -1137,6 +1165,9 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendText(offset, " ICACHE=");
   offset = UART_StatusAppendText(
       offset, ((SCB->CCR & SCB_CCR_IC_Msk) != 0U) ? "ON" : "OFF");
+  offset = UART_StatusAppendText(offset, " DCACHE=");
+  offset = UART_StatusAppendText(
+      offset, ((SCB->CCR & SCB_CCR_DC_Msk) != 0U) ? "ON" : "OFF");
   offset = UART_StatusAppendText(offset, " DONE=");
   offset = UART_StatusAppendUnsigned(offset, dma_done_mask);
   offset = UART_StatusAppendText(offset, " ERR=0x");

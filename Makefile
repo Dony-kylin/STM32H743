@@ -22,7 +22,7 @@ TARGET = STM32H743
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Og
+OPT = -O3
 
 
 #######################################

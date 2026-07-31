@@ -151,10 +151,12 @@ int main(void)
 
   /* USER CODE BEGIN Cache */
   /*
-   * The analysis path performs a 4096-point FFT. Keep instructions cached;
-   * ADC DMA data coherency is handled separately by the acquisition code.
+   * The analysis path performs a 16384-point FFT from AXI SRAM. The AD9220
+   * driver explicitly invalidates its aligned D2 DMA buffers before CPU
+   * access, so both instruction and data caches can remain enabled.
    */
   SCB_EnableICache();
+  SCB_EnableDCache();
   /* USER CODE END Cache */
 
   /* MCU Configuration--------------------------------------------------------*/
