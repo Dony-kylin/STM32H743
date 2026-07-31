@@ -564,6 +564,8 @@ static volatile uint8_t AdcDumpRequest;
 static volatile uint8_t AdcDumpReady;
 static volatile uint32_t AdcDumpRequestTick;
 static volatile uint8_t AdcSpectrumEnabled = 1U;
+static volatile Task0729_Mode TaskProcessorMode =
+    TASK0729_MODE_QUESTION_3;
 static volatile uint8_t AdcSpectrumReady;
 static volatile uint32_t AdcSpectrumErrorCount;
 static volatile uint32_t AdcBadSampleCount;
@@ -771,8 +773,8 @@ static void ScopeApp_ProcessCompletedCapture(void)
   if (AdcSpectrumEnabled != 0U)
   {
     analysis_start_cycles = DWT->CYCCNT;
-    if (Task0729_Process(AdcCaptureSamples,
-                         TASK0729_MODE_QUESTION_3,
+      if (Task0729_Process(AdcCaptureSamples,
+                         TaskProcessorMode,
                          1U,
                          &TaskProcessorResult) != 0U)
     {
@@ -930,7 +932,7 @@ static void USB_PublishAnalysisResult(
   usb_result.thd_ppm = spectrum->thd_ppm;
   usb_result.bad_sample_count = spectrum->bad_sample_count;
   usb_result.analysis_time_us = spectrum->analysis_time_us;
-  usb_result.mode = (uint8_t)TASK0729_MODE_QUESTION_3;
+  usb_result.mode = (uint8_t)TaskProcessorMode;
   usb_result.periods = 1U;
 
   component_count = TaskProcessorResult.component_count;
@@ -1036,6 +1038,7 @@ static void UART_HandleScopeCommand(char *command)
   if (strcmp(cursor, "HELP") == 0)
   {
     UART_SendText(
+        "#CMD MODE 1/2/3 (analysis bandwidth and anti-interference path)\r\n"
         "#CMD RATE 8000000 (effective sample rate)\r\n"
         "#CMD DUMP (one 16384-point CSV waveform)\r\n"
         "#CMD FFT ON/OFF (Simulink 16384-point, up to 3 components)\r\n"
@@ -1079,6 +1082,18 @@ static void UART_HandleScopeCommand(char *command)
   {
     AdcSpectrumEnabled = 0U;
     UART_SendText("#OK FFT OFF\r\n");
+  }
+  else if (sscanf(cursor, "MODE %lu %c", &value, &extra) == 1)
+  {
+    if ((value >= 1UL) && (value <= 3UL))
+    {
+      TaskProcessorMode = (Task0729_Mode)value;
+      UART_Acknowledge("#OK MODE\r\n");
+    }
+    else
+    {
+      UART_SendText("#ERR MODE must be 1, 2, or 3\r\n");
+    }
   }
   else if (strcmp(cursor, "STREAM ON") == 0)
   {

@@ -14,7 +14,7 @@
 
 ```text
 16384点、8 MHz采样
-→ 64阶FIR低通
+→ V4模式选择：题目1/2走原始路径，题目3走64阶FIR低通
 → 不抽取，保留全部16384点
 → 16384点Hann窗FFT
 → 频率和波形提取
@@ -49,7 +49,7 @@ K = 重建干净波形的绝对峰值 / 拟合得到的基波Vpeak
 `waveform[600]` 不做帧间平均，避免不同相位的波形互相抵消。
 
 应用层只使用 `task0729_processor.h`，不要直接访问
-`G_Export_V3_U` 或 `G_Export_V3_Y`。
+`G_Export_V4_U` 或 `G_Export_V4_Y`。
 
 ## 2. 相关文件
 
@@ -57,10 +57,10 @@ K = 重建干净波形的绝对峰值 / 拟合得到的基波Vpeak
 |---|---|
 | `Expand/Inc/task0729_processor.h` | 稳定的对外接口 |
 | `Expand/Src/task0729_processor.c` | 接口包装与数据复制 |
-| `Expand/Generated/Task0729/G_Export_V3.c` | Simulink生成的算法 |
-| `Expand/Generated/Task0729/G_Export_V3_data.c` | FIR、Hann窗和FFT常量 |
-| `G_Sim_V3.slx` | 完整实际仿真模型 |
-| `G_Export_V3.slx` | 只用于生成C代码的模型 |
+| `Expand/Generated/Task0729V4/G_Export_V4.c` | Simulink生成的V4算法 |
+| `Expand/Generated/Task0729V4/G_Export_V4.h` | V4生成接口 |
+| `G_Sim_V4.slx` | 完整实际仿真模型 |
+| `G_Export_V4.slx` | 只用于生成C代码的模型 |
 
 ## 3. 输入数据要求
 
@@ -115,7 +115,7 @@ void ProcessAdcBlock(void)
 
     if (Task0729_Process(
             adc_samples,
-            TASK0729_MODE_QUESTION_3,
+            TASK0729_MODE_QUESTION_3, /* 或按工况选择1/2/3 */
             1U,
             &result) == 0U)
     {
@@ -216,6 +216,20 @@ typedef struct
 Vpp。例如标准基波为 `25.000 mVpeak`，当前拟合得到
 `24.223 mVpeak`，则校准系数应乘以约 `1.03208`。
 
+仿真模型 `G_Sim_V4.slx` 也提供同名的模型工作区参数
+`frontend_gain` 和 `frontend_bias`。用示波器测得前级交流增益和直流
+偏置后，在 Model Explorer → Model Workspace 中修改它们，再运行仿真。
+建议用纯基波在 10、100、200、300、400、500 kHz 各测一次：
+
+```text
+frontend_gain = ADC端交流Vpp / 信号源输入交流Vpp
+frontend_bias = ADC端无信号时的直流电压
+```
+
+如果各频点增益基本一致，使用平均值即可；若随频率明显变化，当前标量
+增益只能作为近似，需进一步增加频率查表校准。不要用题目3含有
+≥1 MHz干扰的总Vpp来标定增益。
+
 `Task0729_SampleToInputVolts()` 可以把一个有符号 Q15 采样转换为使用
 相同标定系数的外部输入瞬时电压。它只是瞬时值，不能替代整帧的
 `amplitude_vpk` 或 `vpp`。
@@ -250,13 +264,13 @@ last = Task0729_GetLastResult();
 ## 9. STM32H743资源说明
 
 - ADC输入复制：约32 KB；
-- Simulink输入和FFT工作区：约288 KB，位于 AXI SRAM；
-- `.task0729_ram` 实际链接占用：294944字节；
+- Simulink输入和FFT工作区：约352 KB，位于 AXI SRAM；
+- `.task0729_ram` 实际链接占用：约360480字节；
 - 当前完整固件：约166 KB Flash；
 - 当前工程总BSS约626 KB，分布在多个STM32H743 RAM区域。
 
 导出模型使用 Compact 文件封装，Hann窗、FIR和FFT常量放在
-`G_Export_V3.c` 中，不再单独生成 `G_Export_V3_data.c`。
+`G_Export_V4.c` 中，不再单独生成 `G_Export_V4_data.c`。
 
 ## 10. 代码生成配置
 
@@ -280,6 +294,18 @@ FFT ON
 STREAM ON
 ```
 
+可通过串口命令切换分析模式：
+
+```text
+MODE 1
+MODE 2
+MODE 3
+```
+
+模式1/2输出原始路径结果；模式3选择抗干扰FIR路径，并对频域幅值补偿FIR通带增益。
+当前模型为静态图，模式1/2虽然不选用FIR结果，但FIR计算仍会随每帧执行；若后续需要
+降低CPU占用，可再改成条件执行子系统。
+
 每个有效分量会输出：
 
 ```text
@@ -290,7 +316,7 @@ STREAM ON
 
 ## 11. 重新生成代码
 
-1. 打开 `G_Export_V3.slx`。
+1. 打开 `G_Export_V4.slx`。
 2. 进入“APP → Embedded Coder”。
 3. 确认目标文件为 `ert.tlc`。
 4. 确认硬件为 `ARM Compatible → ARM Cortex-M`。
@@ -300,24 +326,21 @@ STREAM ON
 也可以在 MATLAB 命令行执行：
 
 ```matlab
-slbuild('G_Export_V3')
+slbuild('G_Export_V4')
 ```
 
 需要复制到项目的文件：
 
 ```text
-G_Export_V3.c
-G_Export_V3.h
-G_Export_V3_data.c
-G_Export_V3_private.h
-G_Export_V3_types.h
+G_Export_V4.c
+G_Export_V4.h
 rtwtypes.h
 ```
 
 不要加入 `ert_main.c`。
 
-重新复制 `G_Export_V3.c` 后，必须保留 `TASK0729_AXI_RAM` 属性，使
-`G_Export_V3_B` 和 `G_Export_V3_U` 位于 `.task0729_ram`。否则会出现 DTCM 溢出。
+重新复制 `G_Export_V4.c` 后，必须保留 `TASK0729_AXI_RAM` 属性，使
+`G_Export_V4_B` 和 `G_Export_V4_U` 位于 `.task0729_ram`。否则会出现 DTCM 溢出。
 
 ## 12. 当前项目中的调用位置
 

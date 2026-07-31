@@ -1,6 +1,6 @@
 #include "task0729_processor.h"
 
-#include "G_Export_V3.h"
+#include "G_Export_V4.h"
 
 #include <math.h>
 #include <string.h>
@@ -66,7 +66,7 @@ void Task0729_Init(void)
   memset(&task0729_last_result, 0, sizeof(task0729_last_result));
   memset(&task0729_current_result, 0, sizeof(task0729_current_result));
   task0729_history_valid = 0U;
-  G_Export_V3_initialize();
+  G_Export_V4_initialize();
 }
 
 uint8_t Task0729_Process(
@@ -95,43 +95,43 @@ uint8_t Task0729_Process(
     return 0U;
   }
 
-  memcpy(G_Export_V3_U.adc_block, samples,
-         sizeof(G_Export_V3_U.adc_block));
-  G_Export_V3_U.mode = (uint8_T)mode;
-  G_Export_V3_U.periods = periods;
-  G_Export_V3_step();
+  memcpy(G_Export_V4_U.adc_block, samples,
+         sizeof(G_Export_V4_U.adc_block));
+  G_Export_V4_U.mode = (uint8_T)mode;
+  G_Export_V4_U.periods = periods;
+  G_Export_V4_step();
 
   output_scale = Task0729_OutputScaleCorrection();
   memset(current, 0, sizeof(*current));
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
   {
-    float generated_amplitude = G_Export_V3_Y.amplitude_Vpk[index];
+    float generated_amplitude = G_Export_V4_Y.amplitude_Vpk[index];
 
     current->frequency_hz[index] =
-        G_Export_V3_Y.frequency_Hz[index];
+        G_Export_V4_Y.frequency_Hz[index];
     current->amplitude_vpk[index] =
         generated_amplitude * output_scale;
     current->amplitude_setting_vpk[index] =
-        G_Export_V3_Y.amplitude_SettingVpk[index] * output_scale;
+        G_Export_V4_Y.amplitude_SettingVpk[index] * output_scale;
     current->harmonic_order[index] =
-        G_Export_V3_Y.harmonic_order[index];
+        G_Export_V4_Y.harmonic_order[index];
     setting_ratio[index] = 1.0F;
     if (generated_amplitude > 1.0E-9F)
     {
       setting_ratio[index] =
-          G_Export_V3_Y.amplitude_SettingVpk[index] /
+          G_Export_V4_Y.amplitude_SettingVpk[index] /
           generated_amplitude;
     }
   }
-  current->component_count = G_Export_V3_Y.component_count;
-  current->vpp = G_Export_V3_Y.Vpp * output_scale;
-  current->vrms = G_Export_V3_Y.Vrms * output_scale;
-  current->fundamental_hz = G_Export_V3_Y.fundamental_Hz;
-  current->waveform_count = G_Export_V3_Y.waveCount;
+  current->component_count = G_Export_V4_Y.component_count;
+  current->vpp = G_Export_V4_Y.Vpp * output_scale;
+  current->vrms = G_Export_V4_Y.Vrms * output_scale;
+  current->fundamental_hz = G_Export_V4_Y.fundamental_Hz;
+  current->waveform_count = G_Export_V4_Y.waveCount;
   for (index = 0U; index < TASK0729_WAVEFORM_SAMPLES; ++index)
   {
     current->waveform[index] =
-        G_Export_V3_Y.waveform[index] * output_scale;
+        G_Export_V4_Y.waveform[index] * output_scale;
   }
 
   /*
