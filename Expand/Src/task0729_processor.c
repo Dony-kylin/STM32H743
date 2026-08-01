@@ -29,9 +29,8 @@ static Task0729_Result task0729_last_result;
 static Task0729_Result task0729_current_result;
 static Task0729_FitWorkspace task0729_fit;
 static uint8_t task0729_history_valid;
-/* Test configuration: bypass the signal-generator piecewise lookup by
- * default and report the measured input-referred voltage. */
-static uint8_t task0729_generator_correction_enabled = 0U;
+/* Use the measured signal-generator correction unless the user selects OFF. */
+static uint8_t task0729_generator_correction_enabled = 1U;
 
 static float Task0729_OutputScaleCorrection(void);
 static void Task0729_ResetOscillators(uint32_t component_count);
