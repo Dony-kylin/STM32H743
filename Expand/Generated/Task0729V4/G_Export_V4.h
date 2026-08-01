@@ -35,7 +35,6 @@ typedef struct {
 typedef struct {
   int16_T adc_block[16384];
   uint8_T mode;
-  uint8_T periods;
   uint8_T generator_correction_enable;
 } ExtU_G_Export_V4_T;
 
@@ -47,8 +46,6 @@ typedef struct {
   real32_T Vpp;
   real32_T Vrms;
   real32_T fundamental_Hz;
-  real32_T waveform[600];
-  uint16_T waveCount;
   real32_T amplitude_SettingVpk[3];
   real32_T generator_correction_gain;
 } ExtY_G_Export_V4_T;
@@ -56,12 +53,10 @@ typedef struct {
 struct P_G_Export_V4_T_ {
   real32_T Q15ADC_Gain;
   real32_T FIR__FILT[64];
-  real32_T _Value;
-  real32_T _waveform_Gain;
   real32_T _amplitude_Vpk_Gain;
-  real32_T _amplitude_SettingVpk_Gain;
   real32_T _Vpp_Gain;
   real32_T _Vrms_Gain;
+  real32_T _amplitude_SettingVpk_Gain;
   boolean_T frame_valid_Value;
   uint8_T _Threshold;
 };

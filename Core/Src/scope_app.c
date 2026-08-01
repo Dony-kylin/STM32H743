@@ -773,9 +773,8 @@ static void ScopeApp_ProcessCompletedCapture(void)
   if (AdcSpectrumEnabled != 0U)
   {
     analysis_start_cycles = DWT->CYCCNT;
-      if (Task0729_Process(AdcCaptureSamples,
+    if (Task0729_Process(AdcCaptureSamples,
                          TaskProcessorMode,
-                         1U,
                          &TaskProcessorResult) != 0U)
     {
       uint32_t elapsed_cycles = DWT->CYCCNT - analysis_start_cycles;
@@ -1454,7 +1453,7 @@ static void UART_SendSpectrumSummary(void)
       "#FFT seq=%lu n=%lu fs=%luHz df=%lu.%03luHz "
       "f0=%lu.%03luHz A1=%lu.%06luV "
       "VPP=%lu.%06luV RMS=%lu.%06luV "
-      "THD=%lu.%04lu%% WAVE=%u BAD=%lu T=%luus\r\n",
+      "THD=%lu.%04lu%% BAD=%lu T=%luus\r\n",
       (unsigned long)result.sequence,
       (unsigned long)result.fft_size,
       (unsigned long)result.sample_rate_hz,
@@ -1470,7 +1469,6 @@ static void UART_SendSpectrumSummary(void)
       (unsigned long)(vrms_uv % 1000000U),
       (unsigned long)(result.thd_ppm / 10000U),
       (unsigned long)(result.thd_ppm % 10000U),
-      (unsigned int)TaskProcessorResult.waveform_count,
       (unsigned long)result.bad_sample_count,
       (unsigned long)result.analysis_time_us);
   if ((written < 0) || ((uint32_t)written >= sizeof(buffer)))
