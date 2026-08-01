@@ -34,9 +34,6 @@ static Task0729_Result task0729_last_result;
 static Task0729_Result task0729_current_result;
 static Task0729_FitWorkspace task0729_fit;
 static uint8_t task0729_history_valid;
-/* Test configuration: bypass the signal-generator piecewise lookup by
- * default and report the measured input-referred voltage. */
-static uint8_t task0729_generator_correction_enabled = 0U;
 
 static float Task0729_OutputScaleCorrection(void);
 static void Task0729_ResetOscillators(uint32_t component_count);
@@ -75,25 +72,7 @@ void Task0729_Init(void)
   memset(&task0729_last_result, 0, sizeof(task0729_last_result));
   memset(&task0729_current_result, 0, sizeof(task0729_current_result));
   task0729_history_valid = 0U;
-  G_Export_V4_U.generator_correction_enable =
-      task0729_generator_correction_enabled;
   G_Export_V4_initialize();
-}
-
-void Task0729_SetGeneratorCorrection(uint8_t enable)
-{
-  uint8_t selected = (enable != 0U) ? 1U : 0U;
-
-  if (selected != task0729_generator_correction_enabled)
-  {
-    task0729_generator_correction_enabled = selected;
-    task0729_history_valid = 0U;
-  }
-}
-
-uint8_t Task0729_GetGeneratorCorrection(void)
-{
-  return task0729_generator_correction_enabled;
 }
 
 uint8_t Task0729_Process(
@@ -103,9 +82,7 @@ uint8_t Task0729_Process(
 {
   uint32_t index;
   uint8_t same_layout;
-  uint8_t amplitudes_refined;
   float output_scale;
-  float generator_correction_gain;
   float setting_ratio[TASK0729_COMPONENT_COUNT];
   Task0729_Result *current = &task0729_current_result;
 
@@ -123,8 +100,6 @@ uint8_t Task0729_Process(
          sizeof(G_Export_V4_U.adc_block));
   /* 统一使用题目3：所有工况都走抗干扰和幅值补偿路径。 */
   G_Export_V4_U.mode = (uint8_T)TASK0729_MODE_QUESTION_3;
-  G_Export_V4_U.generator_correction_enable =
-      task0729_generator_correction_enabled;
   /* 2. 执行FFT、谐波提取和题目3的抗干扰处理。 */
   G_Export_V4_step();
 
@@ -161,33 +136,11 @@ uint8_t Task0729_Process(
    * This reduces cross-talk between strong adjacent components and removes
    * DC-offset bias. Vpp and Vrms continue to describe the fitted ADC input.
    */
-  amplitudes_refined = Task0729_RefineAmplitudes(samples, current);
+  (void)Task0729_RefineAmplitudes(samples, current);
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
   {
     current->amplitude_setting_vpk[index] =
         current->amplitude_vpk[index] * setting_ratio[index];
-  }
-
-  /*
-   * The Simulink output is already corrected.  The least-squares refinement
-   * above deliberately starts from the raw ADC frame, so apply the generated
-   * final-stage gain once more only when refinement replaced those values.
-   * One fundamental-derived gain scales every component and preserves the
-   * harmonic ratios after source peak normalization.
-   */
-  generator_correction_gain =
-      G_Export_V4_Y.generator_correction_gain;
-  if ((amplitudes_refined != 0U) &&
-      (generator_correction_gain > 0.0F))
-  {
-    for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
-    {
-      current->amplitude_vpk[index] *= generator_correction_gain;
-      current->amplitude_setting_vpk[index] *=
-          generator_correction_gain;
-    }
-    current->vpp *= generator_correction_gain;
-    current->vrms *= generator_correction_gain;
   }
 
   same_layout =

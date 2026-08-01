@@ -35,7 +35,6 @@ typedef struct {
 typedef struct {
   int16_T adc_block[16384];
   uint8_T mode;
-  uint8_T generator_correction_enable;
 } ExtU_G_Export_V4_T;
 
 typedef struct {
@@ -47,7 +46,6 @@ typedef struct {
   real32_T Vrms;
   real32_T fundamental_Hz;
   real32_T amplitude_SettingVpk[3];
-  real32_T generator_correction_gain;
 } ExtY_G_Export_V4_T;
 
 struct P_G_Export_V4_T_ {
@@ -78,4 +76,3 @@ extern void G_Export_V4_terminate(void);
 extern RT_MODEL_G_Export_V4_T *const G_Export_V4_M;
 
 #endif
-

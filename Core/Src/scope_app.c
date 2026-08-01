@@ -1054,7 +1054,6 @@ static void UART_HandleScopeCommand(char *command)
         "#CMD RATE 8000000 (effective sample rate)\r\n"
         "#CMD DUMP (one 16384-point CSV waveform)\r\n"
         "#CMD FFT ON/OFF (Simulink 16384-point, up to 3 components)\r\n"
-        "#CMD CORR ON/OFF (generator lookup/measured voltage outputs)\r\n"
         "#CMD STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
   }
   else if (strcmp(cursor, "STATUS") == 0)
@@ -1095,16 +1094,6 @@ static void UART_HandleScopeCommand(char *command)
   {
     AdcSpectrumEnabled = 0U;
     UART_SendText("#OK FFT OFF\r\n");
-  }
-  else if (strcmp(cursor, "CORR ON") == 0)
-  {
-    Task0729_SetGeneratorCorrection(1U);
-    UART_SendText("#OK CORR ON\r\n");
-  }
-  else if (strcmp(cursor, "CORR OFF") == 0)
-  {
-    Task0729_SetGeneratorCorrection(0U);
-    UART_SendText("#OK CORR OFF\r\n");
   }
   else if (sscanf(cursor, "MODE %lu %c", &value, &extra) == 1)
   {
@@ -1230,9 +1219,6 @@ static void UART_SendScopeStatus(void)
   offset = UART_StatusAppendText(
       offset, (AdcSpectrumEnabled != 0U) ? "ON BAD=" : "OFF BAD=");
   offset = UART_StatusAppendUnsigned(offset, AdcBadSampleCount);
-  offset = UART_StatusAppendText(offset, " CORR=");
-  offset = UART_StatusAppendText(
-      offset, (Task0729_GetGeneratorCorrection() != 0U) ? "ON" : "OFF");
   offset = UART_StatusAppendText(offset, " FFT_ERR=");
   offset = UART_StatusAppendUnsigned(offset, AdcSpectrumErrorCount);
   offset = UART_StatusAppendText(offset, " CFG=");

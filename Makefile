@@ -235,8 +235,13 @@ $(BUILD_DIR):
 #######################################
 # clean up
 #######################################
+ifeq ($(OS),Windows_NT)
 clean:
-	-rm -fR $(BUILD_DIR)
+	powershell -NoProfile -Command "if (Test-Path -LiteralPath '$(BUILD_DIR)') { Remove-Item -LiteralPath '$(BUILD_DIR)' -Recurse -Force }"
+else
+clean:
+	rm -fR $(BUILD_DIR)
+endif
   
 #######################################
 # dependencies

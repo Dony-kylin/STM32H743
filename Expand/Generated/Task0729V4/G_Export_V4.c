@@ -6126,22 +6126,11 @@ void G_Export_V4_step(void)
   real32_T y3;
   real32_T yc;
   uint32_T tmp;
-  int16_T tmp_1;
   uint8_T component_count;
   uint8_T rtb_harmonic_order_idx_0;
   uint8_T rtb_harmonic_order_idx_1;
   uint8_T rtb_harmonic_order_idx_2;
   boolean_T tmp_0;
-  static const int16_T b[48] = { 50, 60, 70, 80, 89, 90, 98, 107, 116, 125, 134,
-    143, 152, 162, 171, 180, 189, 198, 207, 216, 225, 234, 243, 252, 261, 270,
-    287, 296, 306, 315, 324, 334, 343, 352, 361, 370, 380, 389, 398, 407, 417,
-    426, 435, 445, 454, 463, 472, 482 };
-
-  static const int16_T c_0[48] = { 50, 60, 70, 80, 95, 95, 110, 120, 130, 140,
-    150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290,
-    300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440,
-    450, 460, 470, 480, 490, 500, 510, 520 };
-
   static const real32_T f[64] = { -1.09383236E-5F, -6.29225469E-5F,
     -0.000145619051F, -0.000210121216F, -0.000171520427F, 5.20178619E-5F,
     0.000474089233F, 0.000979136443F, 0.0013099619F, 0.0011394436F, 0.000227175F,
@@ -6573,50 +6562,20 @@ void G_Export_V4_step(void)
   rtb_amplitude_SettingVpk_idx_0 *= G_Export_V4_P._amplitude_SettingVpk_Gain;
   rtb_amplitude_SettingVpk_idx_1 *= G_Export_V4_P._amplitude_SettingVpk_Gain;
   rtb_amplitude_SettingVpk_idx_2 *= G_Export_V4_P._amplitude_SettingVpk_Gain;
-  yc = 1.0F;
-  /* Calibration table axes are signal-generator mVpp, while the model
-   * amplitude is stored in Vpeak. Convert Vpeak to mVpp in a temporary
-   * variable so b_y1 continues to hold the measured waveform Vpp. */
-  den = rtb_amplitude_SettingVpk_idx_0 * 2000.0F;
-  if ((G_Export_V4_U.generator_correction_enable != 0) && (den > 1.0E-6F)) {
-    if (den < 50.0F) {
-      yc = den;
-    } else if (den >= 482.0F) {
-      yc = (den - 482.0F) + 520.0F;
-    } else {
-      yc = 520.0F;
-      i = 0;
-      exitg1 = false;
-      while ((!exitg1) && (i < 47)) {
-        tmp_1 = b[i + 1];
-        if (den <= tmp_1) {
-          yc = (den - (real32_T)b[i]) / (real32_T)(tmp_1 - b[i]) * (real32_T)
-            (c_0[i + 1] - c_0[i]) + (real32_T)c_0[i];
-          exitg1 = true;
-        } else {
-          i++;
-        }
-      }
-    }
-
-    yc /= den;
-  }
-
   G_Export_V4_Y.amplitude_Vpk[0] = G_Export_V4_P._amplitude_Vpk_Gain *
-    rtb_amplitude_Vpk[0] * yc;
-  G_Export_V4_Y.amplitude_SettingVpk[0] = rtb_amplitude_SettingVpk_idx_0 * yc;
+    rtb_amplitude_Vpk[0];
+  G_Export_V4_Y.amplitude_SettingVpk[0] = rtb_amplitude_SettingVpk_idx_0;
   G_Export_V4_Y.harmonic_order[0] = rtb_harmonic_order_idx_0;
   G_Export_V4_Y.amplitude_Vpk[1] = G_Export_V4_P._amplitude_Vpk_Gain *
-    rtb_amplitude_Vpk[1] * yc;
-  G_Export_V4_Y.amplitude_SettingVpk[1] = rtb_amplitude_SettingVpk_idx_1 * yc;
+    rtb_amplitude_Vpk[1];
+  G_Export_V4_Y.amplitude_SettingVpk[1] = rtb_amplitude_SettingVpk_idx_1;
   G_Export_V4_Y.harmonic_order[1] = rtb_harmonic_order_idx_1;
   G_Export_V4_Y.amplitude_Vpk[2] = G_Export_V4_P._amplitude_Vpk_Gain *
-    rtb_amplitude_Vpk[2] * yc;
-  G_Export_V4_Y.amplitude_SettingVpk[2] = rtb_amplitude_SettingVpk_idx_2 * yc;
+    rtb_amplitude_Vpk[2];
+  G_Export_V4_Y.amplitude_SettingVpk[2] = rtb_amplitude_SettingVpk_idx_2;
   G_Export_V4_Y.harmonic_order[2] = rtb_harmonic_order_idx_2;
-  G_Export_V4_Y.Vpp = G_Export_V4_P._Vpp_Gain * b_y1 * yc;
-  G_Export_V4_Y.Vrms = G_Export_V4_P._Vrms_Gain * y3 * yc;
-  G_Export_V4_Y.generator_correction_gain = yc;
+  G_Export_V4_Y.Vpp = G_Export_V4_P._Vpp_Gain * b_y1;
+  G_Export_V4_Y.Vrms = G_Export_V4_P._Vrms_Gain * y3;
   G_Export_V4_Y.component_count = component_count;
 }
 
