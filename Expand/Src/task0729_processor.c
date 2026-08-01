@@ -58,6 +58,8 @@ static uint8_t Task0729_SolveNormalEquations(uint32_t dimension);
 static uint8_t Task0729_RefineAmplitudes(
     const int16_t samples[TASK0729_INPUT_SAMPLES],
     Task0729_Result *result);
+static float Task0729_ComputeAnalyticVrms(
+    const Task0729_Result *result);
 static float Task0729_RecomposeZeroPhaseVpp(
     const Task0729_Result *result);
 
@@ -82,6 +84,31 @@ static float Task0729_SmoothStableValue(float previous, float current)
   }
 
   return previous + (current - previous) * 0.25F;
+}
+
+static float Task0729_ComputeAnalyticVrms(
+    const Task0729_Result *result)
+{
+  uint32_t component;
+  uint32_t component_count = result->component_count;
+  double amplitude_square_sum = 0.0;
+
+  if (component_count > TASK0729_COMPONENT_COUNT)
+  {
+    component_count = TASK0729_COMPONENT_COUNT;
+  }
+
+  for (component = 0U; component < component_count; ++component)
+  {
+    double amplitude = (double)result->amplitude_vpk[component];
+
+    if (amplitude > 0.0)
+    {
+      amplitude_square_sum += amplitude * amplitude;
+    }
+  }
+
+  return (float)sqrt(0.5 * amplitude_square_sum);
 }
 
 static float Task0729_RecomposeZeroPhaseVpp(
@@ -272,9 +299,15 @@ uint8_t Task0729_Process(
    * FFT is used to discover frequencies, but amplitudes are not taken from a
    * single FFT bin.  Solving DC + sine/cosine terms reduces scalloping loss,
    * leakage between a strong fundamental and weak harmonic, and DC bias.
-   * The fit also returns actual-phase time-domain Vpp and true AC Vrms.
+   * The fit also returns actual-phase time-domain Vpp and analytic AC Vrms.
    */
   (void)Task0729_RefineAmplitudes(samples, current);
+  /*
+   * Recompute from the component amplitudes even if the joint refit had to
+   * fall back to the generated-model values.  This keeps every valid path on
+   * the same analytic RMS definition.
+   */
+  current->vrms = Task0729_ComputeAnalyticVrms(current);
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
   {
     current->amplitude_setting_vpk[index] =
@@ -334,8 +367,6 @@ uint8_t Task0729_Process(
   {
     task0729_last_time_domain_vpp = Task0729_SmoothStableValue(
         task0729_last_time_domain_vpp, current->vpp);
-    task0729_last_result.vrms = Task0729_SmoothStableValue(
-        task0729_last_result.vrms, current->vrms);
     task0729_last_result.fundamental_hz =
         Task0729_SmoothStableValue(
             task0729_last_result.fundamental_hz,
@@ -344,10 +375,12 @@ uint8_t Task0729_Process(
   else
   {
     task0729_last_time_domain_vpp = current->vpp;
-    task0729_last_result.vrms = current->vrms;
     task0729_last_result.fundamental_hz =
         current->fundamental_hz;
   }
+  /* Preserve exact consistency after the component amplitudes are smoothed. */
+  task0729_last_result.vrms =
+      Task0729_ComputeAnalyticVrms(&task0729_last_result);
 
   /*
    * 6. Form the Vpp later compared with the signal-generator setting.
@@ -576,12 +609,13 @@ static uint8_t Task0729_RefineAmplitudes(
   double input_scale;
   double minimum = 0.0;
   double maximum = 0.0;
-  double square_sum = 0.0;
+  double amplitude_square_sum = 0.0;
 
   /*
    * Fit one DC term plus a cosine/sine pair for every detected frequency.
    * Amplitude is hypot(C,S), so it is independent of unknown signal phase.
-   * The same solved coefficients reconstruct actual-phase Vpp and true RMS.
+   * The same solved coefficients reconstruct actual-phase Vpp.  True RMS is
+   * obtained analytically from the fitted sinusoidal component amplitudes.
    */
   memset(&task0729_fit, 0, sizeof(task0729_fit));
 
@@ -679,13 +713,16 @@ static uint8_t Task0729_RefineAmplitudes(
     result->amplitude_vpk[output_index] =
         (float)(sqrt(cosine_coefficient * cosine_coefficient +
                      sine_coefficient * sine_coefficient) *
-                input_scale);
+                 input_scale);
+    amplitude_square_sum +=
+        cosine_coefficient * cosine_coefficient +
+        sine_coefficient * sine_coefficient;
   }
 
   /*
-   * Reconstruct only the detected AC components.  This keeps Vpp and RMS in
-   * actual input volts while rejecting DC offset, isolated ADC glitches and
-   * FIR startup transients.  The normalization recovery factor is not used.
+   * Reconstruct only the detected AC components for actual-phase Vpp.  This
+   * rejects DC offset, isolated ADC glitches and FIR startup transients.  The
+   * normalization recovery factor is not used.
    */
   Task0729_ResetOscillators(component_count);
   for (sample_index = 0U;
@@ -719,14 +756,12 @@ static uint8_t Task0729_RefineAmplitudes(
         maximum = fitted;
       }
     }
-    square_sum += fitted * fitted;
     Task0729_AdvanceOscillators(
         component_count, sample_index + 1U);
   }
 
   result->vpp = (float)((maximum - minimum) * input_scale);
-  result->vrms = (float)(sqrt(
-      square_sum / (double)TASK0729_INPUT_SAMPLES) * input_scale);
+  result->vrms = (float)(sqrt(0.5 * amplitude_square_sum) * input_scale);
   return 1U;
 }
 

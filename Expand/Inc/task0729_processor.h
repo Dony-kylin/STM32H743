@@ -38,7 +38,7 @@ typedef struct
 {
   /* Sorted detected frequencies. Only entries < component_count are valid. */
   float frequency_hz[TASK0729_COMPONENT_COUNT];
-  /* Physical component amplitudes actually present at the ADC input. */
+  /* Component peak amplitudes referred back to the external BNC input. */
   float amplitude_vpk[TASK0729_COMPONENT_COUNT];
   /* Harmonic-generator setting amplitudes recovered from peak normalization. */
   float amplitude_setting_vpk[TASK0729_COMPONENT_COUNT];
@@ -51,7 +51,7 @@ typedef struct
    * plus 56% zero-phase component reconstruction.
    */
   float vpp;
-  /* True AC RMS of the jointly fitted detected components; DC is excluded. */
+  /* Analytic AC RMS from fitted component amplitudes; DC is excluded. */
   float vrms;
   /* Lowest detected component, used as the fundamental frequency. */
   float fundamental_hz;

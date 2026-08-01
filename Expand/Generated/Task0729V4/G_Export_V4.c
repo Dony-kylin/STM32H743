@@ -6502,8 +6502,9 @@ void G_Export_V4_step(void)
           b_y1 = fmaxf(b_y1, fabsf(yc));
         }
 
-        if (b_y1 > rtb_amplitude_Vpk[0] * 1.005F) {
-          den = b_y1 / rtb_amplitude_Vpk[0];
+        y3 = b_y1 / rtb_amplitude_Vpk[0];
+        if (y3 > 0.0F) {
+          den = y3;
         }
       } else {
         y3 = 0.0F;
@@ -6514,8 +6515,9 @@ void G_Export_V4_step(void)
           }
         }
 
-        if (y3 > rtb_amplitude_Vpk[0] * 1.005F) {
-          den = y3 / rtb_amplitude_Vpk[0];
+        y3 /= rtb_amplitude_Vpk[0];
+        if (y3 > 0.0F) {
+          den = y3;
         }
       }
     }
