@@ -11,6 +11,11 @@
 #define TASK0729_GENERATED_FRONTEND_GAIN 4.0F
 #define TASK0729_TWO_PI 6.28318530717958647692
 #define TASK0729_FIT_PIVOT_EPSILON 1.0E-8
+#define TASK0729_VPP_RANGE_THRESHOLD_MV 92.2F
+#define TASK0729_VPP_LOW_OFFSET_MV     (-0.0023854F)
+#define TASK0729_VPP_LOW_SLOPE           0.98230597F
+#define TASK0729_VPP_HIGH_OFFSET_MV    (-0.14907294F)
+#define TASK0729_VPP_HIGH_SLOPE          0.98214909F
 
 typedef struct
 {
@@ -264,6 +269,35 @@ float Task0729_SampleToInputVolts(int16_t sample)
   return ((float)sample *
           (TASK0729_ADC_FULL_SCALE_VPK / 32768.0F) /
           gain) * TASK0729_VOLTAGE_CALIBRATION;
+}
+
+float Task0729_MeasuredVppToScreenVpp(float measured_vpp)
+{
+  float measured_mv;
+  float screen_mv;
+
+  if (!(measured_vpp > 0.0F))
+  {
+    return 0.0F;
+  }
+
+  measured_mv = measured_vpp * 1000.0F;
+  if (measured_mv < TASK0729_VPP_RANGE_THRESHOLD_MV)
+  {
+    screen_mv = TASK0729_VPP_LOW_OFFSET_MV +
+        TASK0729_VPP_LOW_SLOPE * measured_mv;
+  }
+  else
+  {
+    screen_mv = TASK0729_VPP_HIGH_OFFSET_MV +
+        TASK0729_VPP_HIGH_SLOPE * measured_mv;
+  }
+
+  if (!(screen_mv > 0.0F))
+  {
+    return 0.0F;
+  }
+  return screen_mv * 0.001F;
 }
 
 static float Task0729_OutputScaleCorrection(void)

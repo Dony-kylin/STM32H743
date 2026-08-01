@@ -936,7 +936,9 @@ static void USB_PublishAnalysisResult(
   usb_result.fft_size = spectrum->fft_size;
   usb_result.fundamental_millihz = spectrum->fundamental_millihz;
   usb_result.vpp_uv =
-      Task0729_VoltsToMicrovolts(TaskProcessorResult.vpp);
+      Task0729_VoltsToMicrovolts(
+          Task0729_MeasuredVppToScreenVpp(
+              TaskProcessorResult.vpp));
   usb_result.vrms_uv =
       Task0729_VoltsToMicrovolts(TaskProcessorResult.vrms);
   usb_result.thd_ppm = spectrum->thd_ppm;
@@ -1440,7 +1442,8 @@ static void SCOPE_UART_UNUSED UART_SendDump(void)
 static void SCOPE_UART_UNUSED UART_SendSpectrumSummary(void)
 {
   AD9220_SpectrumResult result = AdcSpectrumResult;
-  uint32_t vpp_uv = Task0729_VoltsToMicrovolts(TaskProcessorResult.vpp);
+  uint32_t vpp_uv = Task0729_VoltsToMicrovolts(
+      Task0729_MeasuredVppToScreenVpp(TaskProcessorResult.vpp));
   uint32_t vrms_uv = Task0729_VoltsToMicrovolts(TaskProcessorResult.vrms);
   char buffer[AD9220_SPECTRUM_UART_BUFFER_SIZE];
   uint32_t used = 0U;

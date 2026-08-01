@@ -86,6 +86,13 @@ uint8_t Task0729_Process(
 float Task0729_SampleToInputVolts(int16_t sample);
 
 /*
+ * Converts the raw, input-referred Vpp measured by the AD9220 processing
+ * chain into the equivalent UTG2062X front-panel Vpp setting.  The fit uses
+ * the measured Vpp itself to select the generator's two ranges.
+ */
+float Task0729_MeasuredVppToScreenVpp(float measured_vpp);
+
+/*
  * Returns the most recent completed result owned by this module.
  */
 const Task0729_Result *Task0729_GetLastResult(void);

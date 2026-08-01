@@ -29,6 +29,7 @@ typedef struct
   uint32_t input_sample_count;
   uint32_t fft_size;
   uint32_t fundamental_millihz;
+  /* UTG2062X front-panel-equivalent Vpp after the two-range calibration. */
   uint32_t vpp_uv;
   uint32_t vrms_uv;
   uint32_t thd_ppm;
