@@ -82,6 +82,10 @@ static void RunLed_Process(void)
   */
 int __io_putchar(int ch)
 {
+#if SCOPE_APP_UART_ENABLED == 0U
+  (void)ch;
+  return EOF;
+#else
   uint32_t timeout;
 
   /* 将换行符 \n 转换为 \r\n 以兼容串口终端 */
@@ -111,6 +115,7 @@ int __io_putchar(int ch)
   }
   USART1->TDR = ch;
   return ch;
+#endif
 }
 
 /**
@@ -119,6 +124,9 @@ int __io_putchar(int ch)
   */
 int __io_getchar(void)
 {
+#if SCOPE_APP_UART_ENABLED == 0U
+  return EOF;
+#else
   uint32_t timeout = 1000000U;
 
   while (((USART1->ISR & USART_ISR_RXNE_RXFNE) == 0U) &&
@@ -131,6 +139,7 @@ int __io_getchar(void)
     return EOF;
   }
   return (int)(USART1->RDR & 0xFF);
+#endif
 }
 
 /* USER CODE END 0 */
@@ -181,15 +190,19 @@ int main(void)
   MX_QUADSPI_Init();
   MX_SPI1_Init();
   MX_SPI6_Init();
+#if SCOPE_APP_UART_ENABLED != 0U
   MX_USART1_UART_Init();
+#endif
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+#if SCOPE_APP_UART_ENABLED != 0U
   {
     static const uint8_t boot_message[] = "#BOOT UART OK\r\n";
     (void)HAL_UART_Transmit(&huart1, boot_message,
                             (uint16_t)(sizeof(boot_message) - 1U),
                              100U);
   }
+#endif
   ScopeApp_Init();
   /* USER CODE END 2 */
 

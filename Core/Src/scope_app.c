@@ -581,8 +581,13 @@ static AD9220_SpectrumResult AdcSpectrumResult;
 static Task0729_Result TaskProcessorResult;
 static uint32_t TaskProcessorSequence;
 static char UartStatusBuffer[512];
-static uint32_t AdcLastMeasurementTick;
-static uint32_t AdcLastSpectrumUartTick;
+#if SCOPE_APP_UART_ENABLED == 0U
+#define SCOPE_UART_UNUSED __attribute__((unused))
+#else
+#define SCOPE_UART_UNUSED
+#endif
+static uint32_t AdcLastMeasurementTick SCOPE_UART_UNUSED;
+static uint32_t AdcLastSpectrumUartTick SCOPE_UART_UNUSED;
 static void AD9220_PrepareAcquisition(void);
 static void ScopeApp_ProcessAcquisition(void);
 static void ScopeApp_ProcessCompletedCapture(void);
@@ -623,17 +628,19 @@ void ScopeApp_Init(void)
   AD9220_ApplyStartupScopeConfig();
   Task0729_Init();
 
-  HAL_Delay(20U);
+#if SCOPE_APP_UART_ENABLED != 0U
   UART_SendText(
       "#READY MODE=TIM4_PWM_DMA RATE=8000000Hz "
       "PROC=8000000Hz FFT=16384 DECIM=1 SIMULINK=1 "
       "SEARCH=8-510kHz ICACHE=ON DCACHE=ON OPT=O3 PIPE=ON\r\n");
+#endif
 
   AD9220_PrepareAcquisition();
 }
 
 void ScopeApp_Process(void)
 {
+#if SCOPE_APP_UART_ENABLED != 0U
   uint32_t now;
 
   UART_PollScopeCommands();
@@ -673,6 +680,10 @@ void ScopeApp_Process(void)
     AdcLastMeasurementTick = now;
     UART_SendMeasurements();
   }
+#else
+  /* USB is the only control/result transport in the current build. */
+  AdcSpectrumReady = 0U;
+#endif
 
   ScopeApp_ProcessAcquisition();
 }
@@ -966,7 +977,7 @@ void AD9220_CaptureCompleteCallback(void)
   AdcCaptureDone = 1U;
 }
 
-static void UART_PollScopeCommands(void)
+static void SCOPE_UART_UNUSED UART_PollScopeCommands(void)
 {
   static char command_buffer[64];
   static uint32_t command_length;
@@ -1324,7 +1335,7 @@ static void AD9220_PrepareAcquisition(void)
   AdcCaptureActive = 0U;
 }
 
-static void UART_SendMeasurements(void)
+static void SCOPE_UART_UNUSED UART_SendMeasurements(void)
 {
   AD7606_ScopeMeasurements measurements;
   char buffer[AD9220_UART_BUFFER_SIZE];
@@ -1355,7 +1366,7 @@ static void UART_SendMeasurements(void)
   UART_SendText(buffer);
 }
 
-static void UART_SendDump(void)
+static void SCOPE_UART_UNUSED UART_SendDump(void)
 {
   char buffer[AD9220_DUMP_BUFFER_SIZE];
   uint32_t used = 0U;
@@ -1426,7 +1437,7 @@ static void UART_SendDump(void)
   UART_SendText("#DUMP END\r\n");
 }
 
-static void UART_SendSpectrumSummary(void)
+static void SCOPE_UART_UNUSED UART_SendSpectrumSummary(void)
 {
   AD9220_SpectrumResult result = AdcSpectrumResult;
   uint32_t vpp_uv = Task0729_VoltsToMicrovolts(TaskProcessorResult.vpp);

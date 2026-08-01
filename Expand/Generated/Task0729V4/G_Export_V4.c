@@ -6574,23 +6574,15 @@ void G_Export_V4_step(void)
   rtb_amplitude_SettingVpk_idx_1 *= G_Export_V4_P._amplitude_SettingVpk_Gain;
   rtb_amplitude_SettingVpk_idx_2 *= G_Export_V4_P._amplitude_SettingVpk_Gain;
   yc = 1.0F;
-<<<<<<< HEAD
   /* Calibration table axes are signal-generator mVpp, while the model
-   * amplitude is stored in Vpeak. Convert Vpeak to mVpp before lookup. */
-  b_y1 = rtb_amplitude_SettingVpk_idx_0 * 2000.0F;
-  if ((G_Export_V4_U.generator_correction_enable != 0) && (b_y1 > 1.0E-6F)) {
-    if (b_y1 < 50.0F) {
-      yc = b_y1;
-    } else if (b_y1 >= 482.0F) {
-      yc = (b_y1 - 482.0F) + 520.0F;
-=======
+   * amplitude is stored in Vpeak. Convert Vpeak to mVpp in a temporary
+   * variable so b_y1 continues to hold the measured waveform Vpp. */
   den = rtb_amplitude_SettingVpk_idx_0 * 2000.0F;
   if ((G_Export_V4_U.generator_correction_enable != 0) && (den > 1.0E-6F)) {
     if (den < 50.0F) {
       yc = den;
     } else if (den >= 482.0F) {
       yc = (den - 482.0F) + 520.0F;
->>>>>>> 3f986545169033ebbbb525510b4f1a79879244bb
     } else {
       yc = 520.0F;
       i = 0;
