@@ -3,6 +3,16 @@
 #include "main.h"
 #include "usbd_cdc_if.h"
 
+/*
+ * USB transport policy
+ * --------------------
+ * RX callbacks execute in interrupt context and only append bytes to a ring.
+ * Parsing and command dispatch happen in APP_USB_DeviceProcess() in the main
+ * loop.  Control replies use a small FIFO and always have priority. Analysis
+ * results use two buffers with "latest wins" replacement, so a slow PC cannot
+ * block the next ADC capture or make the display lag through stale frames.
+ */
+
 #define APP_USB_RX_RING_SIZE       1024U
 #define APP_USB_RX_RING_MASK       (APP_USB_RX_RING_SIZE - 1U)
 #define APP_USB_CONTROL_DEPTH      4U
@@ -122,6 +132,7 @@ void APP_USB_DeviceReceiveFromIsr(const uint8_t *data, uint16_t length)
     return;
   }
 
+  /* No parser, CRC or USB transmit call is allowed from this ISR callback. */
   for (index = 0U; index < length; ++index)
   {
     uint16_t next = (uint16_t)((rx_write + 1U) & APP_USB_RX_RING_MASK);
@@ -275,6 +286,12 @@ static uint16_t encode_analysis_payload(
     component_count = APP_USB_ANALYSIS_COMPONENTS;
   }
 
+  /*
+   * Payload is fixed at 53 bytes: integer mHz/uV/ppm units avoid float ABI
+   * issues and the complete framed message fits in one 64-byte USB FS packet.
+   * Frequency is sent once as f0; the host obtains each component frequency
+   * from f0 * harmonic_order.
+   */
   payload[offset++] = result->mode;
   payload[offset++] = component_count;
 
@@ -323,6 +340,7 @@ bool APP_USB_DevicePublishAnalysis(const AppUsbAnalysisResult *result)
     return false;
   }
 
+  /* Replace an unsent result instead of queueing unbounded stale telemetry. */
   if (result_pending_valid != 0U)
   {
     write_index = result_pending_index;

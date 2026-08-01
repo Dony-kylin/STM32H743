@@ -36,15 +36,24 @@ typedef enum
 
 typedef struct
 {
+  /* Sorted detected frequencies. Only entries < component_count are valid. */
   float frequency_hz[TASK0729_COMPONENT_COUNT];
   /* Physical component amplitudes actually present at the ADC input. */
   float amplitude_vpk[TASK0729_COMPONENT_COUNT];
   /* Harmonic-generator setting amplitudes recovered from peak normalization. */
   float amplitude_setting_vpk[TASK0729_COMPONENT_COUNT];
+  /* 1=fundamental; 2..16 are harmonic orders used by display and THD. */
   uint8_t harmonic_order[TASK0729_COMPONENT_COUNT];
+  /* The task permits fundamental plus one or two harmonics: maximum is 3. */
   uint8_t component_count;
+  /*
+   * External-input Vpp before UTG screen calibration: 44% fitted time-domain
+   * plus 56% zero-phase component reconstruction.
+   */
   float vpp;
+  /* True AC RMS of the jointly fitted detected components; DC is excluded. */
   float vrms;
+  /* Lowest detected component, used as the fundamental frequency. */
   float fundamental_hz;
 } Task0729_Result;
 
@@ -62,7 +71,9 @@ void Task0729_Init(void);
  *   analog front-end gain of 4 in its final voltage outputs.
  *
  * mode:
- *   TASK0729_MODE_QUESTION_1, _2, or _3.
+ *   TASK0729_MODE_QUESTION_1, _2, or _3. The current wrapper validates this
+ *   argument for protocol compatibility but deliberately executes the
+ *   question-3 FIR path for every mode.
  *
  * Returns 1 on success, 0 for an invalid argument.
  */

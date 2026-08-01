@@ -181,6 +181,11 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  /*
+   * Initialize the application-level USB queues before the Cube USB device
+   * stack can deliver an RX callback.  This prevents an early host packet
+   * from observing uninitialized ring-buffer indices.
+   */
   APP_USB_DeviceInit();
   /* USER CODE END SysInit */
 
@@ -213,10 +218,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    RunLed_Process();
-    APP_USB_DeviceProcess();
-    ScopeApp_Process();
-    APP_USB_DeviceProcess();
+    /*
+     * The firmware is deliberately bare metal: DMA interrupts only mark a
+     * capture complete; all FFT and least-squares work runs here.  USB is
+     * serviced both before and after signal processing so a 63-byte result
+     * or control reply is not delayed by the next analysis block.
+     */
+    RunLed_Process();             /* 500 ms heartbeat; does not time sampling. */
+    APP_USB_DeviceProcess();      /* Drain host commands / finish pending TX. */
+    ScopeApp_Process();           /* Capture, repair, analyze and publish. */
+    APP_USB_DeviceProcess();      /* Start sending the result just published. */
   }
   /* USER CODE END 3 */
 }

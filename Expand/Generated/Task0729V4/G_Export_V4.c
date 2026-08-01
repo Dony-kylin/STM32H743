@@ -6240,15 +6240,18 @@ void G_Export_V4_step(void)
     if (G_Export_V4_U.mode == 1) {
       b_y1 = 200000.0F;
     } else {
-      b_y1 = 500000.0F;
+      b_y1 = 510000.0F;
     }
 
     i = (int32_T)ceil(b_y1 * G_Export_V4_NFFT / G_Export_V4_Fs);
-    for (imax = 0; imax <= i - 20; imax++) {
-      y = G_Export_V4_B.Hann[imax + 21];
-      rtb_amplitude_SettingVpk_idx_0 = G_Export_V4_B.Hann[imax + 20];
+    /* Include bin 16 (7.8125 kHz) so an exact 8 kHz input can peak on its
+     * nearest FFT bin.  The upper center bin is ceil(max_hz / bin_width),
+     * which includes 510 kHz while retaining both interpolation neighbors. */
+    for (imax = 0; imax <= i - 16; imax++) {
+      y = G_Export_V4_B.Hann[imax + 16];
+      rtb_amplitude_SettingVpk_idx_0 = G_Export_V4_B.Hann[imax + 15];
       if (y >= rtb_amplitude_SettingVpk_idx_0) {
-        rtb_amplitude_SettingVpk_idx_1 = G_Export_V4_B.Hann[imax + 22];
+        rtb_amplitude_SettingVpk_idx_1 = G_Export_V4_B.Hann[imax + 17];
         if (y > rtb_amplitude_SettingVpk_idx_1) {
           b_y1 = logf(fmaxf(rtb_amplitude_SettingVpk_idx_0, 1.0E-30F));
           y3 = logf(fmaxf(rtb_amplitude_SettingVpk_idx_1, 1.0E-30F));
@@ -6273,7 +6276,7 @@ void G_Export_V4_step(void)
                 }
 
                 bestScore[imin] = y3;
-                bestBin[imin] = (((real32_T)imax + 22.0F) - 1.0F) + b_y1;
+                bestBin[imin] = (real32_T)imax + 16.0F + b_y1;
                 exitg1 = true;
               } else {
                 imin++;

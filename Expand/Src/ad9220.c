@@ -4,6 +4,16 @@
 
 #include <stddef.h>
 
+/*
+ * AD9220 capture strategy used by the G-problem firmware
+ * -------------------------------------------------------
+ * AD9220 presents one 12-bit sample on pins split across GPIOE and GPIOD.
+ * TIM4_CH4 supplies the continuous 8 MHz ADC clock.  The corresponding TIM4
+ * update event drives two synchronized DMA streams, one per GPIO port, so
+ * the CPU does not service an interrupt for every sample.  A completed pair
+ * of DMA buffers is later packed into signed Q15 by AD9220_CopySignedSamples.
+ */
+
 #define AD9220_CAPTURE_TRANSFER_COUNT \
   (AD9220_MAX_CAPTURE_SAMPLES + AD9220_PIPELINE_DELAY)
 #define AD9220_PORT_D_SHIFT               16U
@@ -364,6 +374,11 @@ uint32_t AD9220_CopySignedSamples(int16_t *destination,
   uint32_t *port_e;
   uint32_t *port_d;
 
+  /*
+   * Return zero rather than a partial block.  Task0729 requires exactly
+   * 16384 contiguous samples, and accepting a half-written block would cause
+   * much larger frequency/amplitude errors than dropping one result frame.
+   */
   if ((destination == NULL) || (ad9220_capture_complete == 0U))
   {
     return 0U;

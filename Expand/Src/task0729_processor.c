@@ -11,14 +11,28 @@
 #define TASK0729_GENERATED_FRONTEND_GAIN 4.0F
 #define TASK0729_TWO_PI 6.28318530717958647692
 #define TASK0729_FIT_PIVOT_EPSILON 1.0E-8
+/* 4096 points give 256 samples/cycle even for H16, enough for sub-mV Vpp. */
+#define TASK0729_ZERO_PHASE_VPP_POINTS 4096U
+/* Weights were validated against 597 hardware cases; keep their sum at 1. */
+#define TASK0729_VPP_TIME_DOMAIN_WEIGHT 0.44F
+#define TASK0729_VPP_COMPONENT_WEIGHT   0.56F
+/* Measured-Vpp breakpoint corresponding to the UTG2062X output range change. */
 #define TASK0729_VPP_RANGE_THRESHOLD_MV 92.2F
-#define TASK0729_VPP_LOW_OFFSET_MV     (-0.0023854F)
-#define TASK0729_VPP_LOW_SLOPE           0.98230597F
-#define TASK0729_VPP_HIGH_OFFSET_MV    (-0.14907294F)
-#define TASK0729_VPP_HIGH_SLOPE          0.98214909F
 
+#define TASK0729_VPP_LOW_OFFSET_MV      0.13900590F
+#define TASK0729_VPP_LOW_SLOPE          1.00217422F
+
+#define TASK0729_VPP_HIGH_OFFSET_MV    (-0.24166751F)
+#define TASK0729_VPP_HIGH_SLOPE         1.00563939F
 typedef struct
 {
+  /*
+   * Joint least-squares model:
+   *   sample = DC + C1*cos(w1*t) + S1*sin(w1*t) + ...
+   * With at most three components the largest system is only 7x7.  Double
+   * precision is used here to keep the normal equations well conditioned;
+   * the large FFT arrays remain single precision in generated code.
+   */
   double normal[TASK0729_FIT_MAX_TERMS][TASK0729_FIT_MAX_TERMS];
   double rhs[TASK0729_FIT_MAX_TERMS];
   double solution[TASK0729_FIT_MAX_TERMS];
@@ -34,6 +48,7 @@ static Task0729_Result task0729_last_result;
 static Task0729_Result task0729_current_result;
 static Task0729_FitWorkspace task0729_fit;
 static uint8_t task0729_history_valid;
+static float task0729_last_time_domain_vpp;
 
 static float Task0729_OutputScaleCorrection(void);
 static void Task0729_ResetOscillators(uint32_t component_count);
@@ -43,6 +58,8 @@ static uint8_t Task0729_SolveNormalEquations(uint32_t dimension);
 static uint8_t Task0729_RefineAmplitudes(
     const int16_t samples[TASK0729_INPUT_SAMPLES],
     Task0729_Result *result);
+static float Task0729_RecomposeZeroPhaseVpp(
+    const Task0729_Result *result);
 
 static float Task0729_SmoothStableValue(float previous, float current)
 {
@@ -67,11 +84,119 @@ static float Task0729_SmoothStableValue(float previous, float current)
   return previous + (current - previous) * 0.25F;
 }
 
+static float Task0729_RecomposeZeroPhaseVpp(
+    const Task0729_Result *result)
+{
+  double amplitude[TASK0729_COMPONENT_COUNT];
+  double cosine[TASK0729_COMPONENT_COUNT];
+  double sine[TASK0729_COMPONENT_COUNT];
+  double cosine_step[TASK0729_COMPONENT_COUNT];
+  double sine_step[TASK0729_COMPONENT_COUNT];
+  double minimum = 0.0;
+  double maximum = 0.0;
+  uint32_t valid_count = 0U;
+  uint32_t component;
+  uint32_t sample_index;
+  uint32_t component_count;
+
+  if (result == NULL)
+  {
+    return 0.0F;
+  }
+
+  component_count = result->component_count;
+  if (component_count > TASK0729_COMPONENT_COUNT)
+  {
+    component_count = TASK0729_COMPONENT_COUNT;
+  }
+
+  /*
+   * The signal generator is commanded with all initial phases equal to zero.
+   * Reconstructing from harmonic order (rather than measured frequency) makes
+   * exactly one fundamental period close on the 4096-point grid.  It also
+   * removes relative phase shift introduced by cables, filters and the analog
+   * front end when estimating the generator's screen-equivalent Vpp.
+   */
+  for (component = 0U; component < component_count; ++component)
+  {
+    float component_amplitude = result->amplitude_vpk[component];
+    uint32_t order = result->harmonic_order[component];
+
+    if ((order >= 1U) && (component_amplitude > 0.0F))
+    {
+      double angle = TASK0729_TWO_PI * (double)order /
+          (double)TASK0729_ZERO_PHASE_VPP_POINTS;
+
+      amplitude[valid_count] = (double)component_amplitude;
+      cosine[valid_count] = 1.0;
+      sine[valid_count] = 0.0;
+      cosine_step[valid_count] = cos(angle);
+      sine_step[valid_count] = sin(angle);
+      ++valid_count;
+    }
+  }
+
+  if (valid_count == 0U)
+  {
+    return 0.0F;
+  }
+
+  /*
+   * Oscillator recurrence avoids 4096 * component_count calls to sin().
+   * All oscillators start at sin(0)=0, which implements the task's zero-phase
+   * convention.  Double precision keeps recurrence drift negligible here.
+   */
+  for (sample_index = 0U;
+       sample_index < TASK0729_ZERO_PHASE_VPP_POINTS;
+       ++sample_index)
+  {
+    double value = 0.0;
+
+    for (component = 0U; component < valid_count; ++component)
+    {
+      value += amplitude[component] * sine[component];
+    }
+
+    if (sample_index == 0U)
+    {
+      minimum = value;
+      maximum = value;
+    }
+    else
+    {
+      if (value < minimum)
+      {
+        minimum = value;
+      }
+      if (value > maximum)
+      {
+        maximum = value;
+      }
+    }
+
+    for (component = 0U; component < valid_count; ++component)
+    {
+      double next_cosine =
+          cosine[component] * cosine_step[component] -
+          sine[component] * sine_step[component];
+      double next_sine =
+          sine[component] * cosine_step[component] +
+          cosine[component] * sine_step[component];
+
+      cosine[component] = next_cosine;
+      sine[component] = next_sine;
+    }
+  }
+
+  return (float)(maximum - minimum);
+}
+
 void Task0729_Init(void)
 {
   memset(&task0729_last_result, 0, sizeof(task0729_last_result));
   memset(&task0729_current_result, 0, sizeof(task0729_current_result));
   task0729_history_valid = 0U;
+  task0729_last_time_domain_vpp = 0.0F;
   G_Export_V4_initialize();
 }
 
@@ -95,15 +220,27 @@ uint8_t Task0729_Process(
   {
     return 0U;
   }
-  /* 1. 把一整帧ADC数据交给Simulink生成代码。 */
+  /*
+   * 1. Copy one complete ADC frame into the generated model.  The model is
+   * stateful and non-reentrant, so this wrapper is called only by the main
+   * acquisition state machine after DMA completion.
+   */
   memcpy(G_Export_V4_U.adc_block, samples,
          sizeof(G_Export_V4_U.adc_block));
-  /* 统一使用题目3：所有工况都走抗干扰和幅值补偿路径。 */
+  /*
+   * 2. Always use question 3.  Its 64-tap FIR rejects the >=1 MHz interferer
+   * and its passband-gain compensation restores all useful components below
+   * 500 kHz.  Therefore it is also safe for the simpler questions 1 and 2.
+   */
   G_Export_V4_U.mode = (uint8_T)TASK0729_MODE_QUESTION_3;
-  /* 2. 执行FFT、谐波提取和题目3的抗干扰处理。 */
+  /* Generated code performs FIR, Hann window, 16384 FFT and peak selection. */
   G_Export_V4_step();
 
-  /* 3. 先把模型输出换算成实际输入端电压。 */
+  /*
+   * 3. Convert generated-model volts back to the external BNC input.  The
+   * model was exported with a fixed gain of 4; OutputScaleCorrection lets the
+   * measured hardware gain be changed without regenerating Simulink code.
+   */
   output_scale = Task0729_OutputScaleCorrection();
   memset(current, 0, sizeof(*current));
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
@@ -131,10 +268,11 @@ uint8_t Task0729_Process(
   current->vrms = G_Export_V4_Y.Vrms * output_scale;
   current->fundamental_hz = G_Export_V4_Y.fundamental_Hz;
   /*
-   * 4. 用原始ADC整帧重新拟合幅值，减少FFT栅栏误差。
-   * Jointly refit all detected tones against the original 8 MSPS block.
-   * This reduces cross-talk between strong adjacent components and removes
-   * DC-offset bias. Vpp and Vrms continue to describe the fitted ADC input.
+   * 4. Jointly refit every detected tone against the original 8 MSPS frame.
+   * FFT is used to discover frequencies, but amplitudes are not taken from a
+   * single FFT bin.  Solving DC + sine/cosine terms reduces scalloping loss,
+   * leakage between a strong fundamental and weak harmonic, and DC bias.
+   * The fit also returns actual-phase time-domain Vpp and true AC Vrms.
    */
   (void)Task0729_RefineAmplitudes(samples, current);
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
@@ -143,6 +281,11 @@ uint8_t Task0729_Process(
         current->amplitude_vpk[index] * setting_ratio[index];
   }
 
+  /*
+   * 5. Smooth only when the component layout is unchanged.  If an order
+   * appears/disappears, immediately adopt the new result; averaging H3 from
+   * the previous waveform into H16 from the next would be physically wrong.
+   */
   same_layout =
       ((task0729_history_valid != 0U) &&
        (task0729_last_result.component_count ==
@@ -189,8 +332,8 @@ uint8_t Task0729_Process(
       current->component_count;
   if (same_layout != 0U)
   {
-    task0729_last_result.vpp = Task0729_SmoothStableValue(
-        task0729_last_result.vpp, current->vpp);
+    task0729_last_time_domain_vpp = Task0729_SmoothStableValue(
+        task0729_last_time_domain_vpp, current->vpp);
     task0729_last_result.vrms = Task0729_SmoothStableValue(
         task0729_last_result.vrms, current->vrms);
     task0729_last_result.fundamental_hz =
@@ -200,10 +343,37 @@ uint8_t Task0729_Process(
   }
   else
   {
-    task0729_last_result.vpp = current->vpp;
+    task0729_last_time_domain_vpp = current->vpp;
     task0729_last_result.vrms = current->vrms;
     task0729_last_result.fundamental_hz =
         current->fundamental_hz;
+  }
+
+  /*
+   * 6. Form the Vpp later compared with the signal-generator setting.
+   *
+   * - 44% actual-phase fitted time-domain Vpp preserves information about the
+   *   waveform really present at the ADC input.
+   * - 56% zero-phase component Vpp follows the generator's commanded phase
+   *   convention and suppresses analog-path relative phase error.
+   *
+   * The two-range screen calibration is intentionally applied later in
+   * scope_app.c, after this blend.  If no component is valid, fall back to the
+   * time-domain value so a transient recognition failure does not report zero.
+   */
+  task0729_last_result.vpp =
+      Task0729_RecomposeZeroPhaseVpp(&task0729_last_result);
+  if (task0729_last_result.vpp > 0.0F)
+  {
+    task0729_last_result.vpp =
+        TASK0729_VPP_TIME_DOMAIN_WEIGHT *
+            task0729_last_time_domain_vpp +
+        TASK0729_VPP_COMPONENT_WEIGHT *
+            task0729_last_result.vpp;
+  }
+  else
+  {
+    task0729_last_result.vpp = task0729_last_time_domain_vpp;
   }
   task0729_history_valid = 1U;
   *result = task0729_last_result;
@@ -234,6 +404,12 @@ float Task0729_MeasuredVppToScreenVpp(float measured_vpp)
     return 0.0F;
   }
 
+  /*
+   * The task judges against the signal-generator front-panel setting.  The
+   * UTG2062X changes output range, so one global slope leaves a repeatable
+   * residual.  Select the measured-domain branch first, then map to the
+   * screen-equivalent value.  Other metrics must not use this correction.
+   */
   measured_mv = measured_vpp * 1000.0F;
   if (measured_mv < TASK0729_VPP_RANGE_THRESHOLD_MV)
   {
@@ -402,7 +578,11 @@ static uint8_t Task0729_RefineAmplitudes(
   double maximum = 0.0;
   double square_sum = 0.0;
 
-  /* 用直流项+每个频率的正弦/余弦项做最小二乘拟合。 */
+  /*
+   * Fit one DC term plus a cosine/sine pair for every detected frequency.
+   * Amplitude is hypot(C,S), so it is independent of unknown signal phase.
+   * The same solved coefficients reconstruct actual-phase Vpp and true RMS.
+   */
   memset(&task0729_fit, 0, sizeof(task0729_fit));
 
   for (result_index = 0U;
@@ -433,6 +613,7 @@ static uint8_t Task0729_RefineAmplitudes(
   dimension = 1U + (2U * component_count);
   Task0729_ResetOscillators(component_count);
 
+  /* Accumulate X'X and X'y without storing a 16384-by-7 design matrix. */
   for (sample_index = 0U;
        sample_index < TASK0729_INPUT_SAMPLES; ++sample_index)
   {
@@ -476,6 +657,7 @@ static uint8_t Task0729_RefineAmplitudes(
     }
   }
 
+  /* Partial pivoting rejects a singular/ill-conditioned component layout. */
   if (Task0729_SolveNormalEquations(dimension) == 0U)
   {
     return 0U;

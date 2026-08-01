@@ -551,6 +551,22 @@ void StartTask_Uart(void *argument)
 
 #endif
 
+/*
+ * ======================= Active bare-metal pipeline =======================
+ *
+ * The large #if 0 block above is the retired RTOS/LCD implementation.  The
+ * code below is the path actually compiled by the Makefile and used for the
+ * G-problem measurement:
+ *
+ *   TIM4 8 MHz clock -> dual GPIO DMA -> 16384 Q15 samples
+ *   -> isolated/bad-sample repair -> Task0729_Process()
+ *   -> Vpp/Vrms/f0/components/THD -> framed USB CDC result
+ *
+ * The H743 project is therefore the measurement front end.  Waveform and
+ * spectrum drawing, the >=6-inch display and the 1/3-period key selection
+ * are intentionally delegated to the downstream display controller.
+ */
+
 volatile AD9220_Frame AdcLatestFrame;
 volatile uint32_t AdcFrameCount;
 volatile uint32_t AdcTimeoutCount;
@@ -616,6 +632,12 @@ static void Task0729_ConvertToSpectrum(
 
 void ScopeApp_Init(void)
 {
+  /*
+   * Legacy scope configuration is still loaded for backward-compatible
+   * diagnostics, but the current product path fixes channel=1, decimation=1
+   * and continuous acquisition.  Task0729_Init() must run only once because
+   * the generated FIR and the wrapper's frame-smoothing history are stateful.
+   */
   AD7606_ScopeInit(AD9220_FULL_SCALE_MV);
   ScopeStartupConfigValid = AD7606_ScopeStoreLoad(
       &ScopeStartupConfig, &ScopeStartupSampleRateHz,
@@ -690,6 +712,11 @@ void ScopeApp_Process(void)
 
 static void ScopeApp_ProcessAcquisition(void)
 {
+  /*
+   * This is a non-blocking two-state machine.  While active, it polls only
+   * completion/timeout flags.  When idle, it starts a fresh 16384-sample DMA
+   * capture.  Expensive processing is never performed in a DMA ISR.
+   */
   if (AdcCaptureActive != 0U)
   {
     if ((AdcCaptureDone != 0U) ||
@@ -709,6 +736,7 @@ static void ScopeApp_ProcessAcquisition(void)
 
       ++AdcTimeoutCount;
       AdcDmaDoneMask = dma_done_mask;
+      /* 20 ms is almost ten times the nominal 2.048 ms capture duration. */
       AD9220_AbortCapture();
       AdcCaptureActive = 0U;
       AdcCaptureDone = 0U;
@@ -742,6 +770,11 @@ static void ScopeApp_ProcessCompletedCapture(void)
   uint32_t bad_sample_count;
   uint32_t completed_overrange_count;
 
+  /*
+   * Convert the synchronized GPIO snapshots into signed Q15 samples.  The
+   * driver also removes the AD9220 pipeline prefix, invalidates D-cache and
+   * rejects a buffer if DMA has started writing it again.
+   */
   copied = AD9220_CopySignedSamples(
       AdcCaptureSamples, AD9220_CAPTURE_SAMPLES);
   if (copied != AD9220_CAPTURE_SAMPLES)
@@ -772,6 +805,11 @@ static void ScopeApp_ProcessCompletedCapture(void)
     AD9220_PrepareAcquisition();
   }
 
+  /*
+   * Repair saturated/glitch runs before fitting.  The count is preserved in
+   * telemetry; a large value is a hardware-quality warning, not silently
+   * treated as a clean measurement.
+   */
   bad_sample_count = AD9220_SpectrumRepairSamples(
       AdcCaptureSamples, copied);
   AdcBadSampleCount += bad_sample_count;
@@ -784,6 +822,12 @@ static void ScopeApp_ProcessCompletedCapture(void)
   if (AdcSpectrumEnabled != 0U)
   {
     analysis_start_cycles = DWT->CYCCNT;
+    /*
+     * Task0729_Process accepts a question mode for protocol compatibility,
+     * but its wrapper deliberately selects the question-3 FIR path for all
+     * inputs.  That gives questions 1 and 2 the same >=1 MHz interference
+     * rejection without narrowing their required 10-200/500 kHz bands.
+     */
     if (Task0729_Process(AdcCaptureSamples,
                          TaskProcessorMode,
                          &TaskProcessorResult) != 0U)
@@ -851,6 +895,12 @@ static void Task0729_ConvertToSpectrum(
   float harmonic_square_sum = 0.0F;
   uint32_t index;
 
+  /*
+   * Task0729_Result is convenient for floating-point signal processing;
+   * AD9220_SpectrumResult is a unit-explicit transport/diagnostic view.  It
+   * stores frequency in mHz and amplitude in uV so the USB payload remains
+   * deterministic across compilers and does not transmit IEEE floats.
+   */
   memset(destination, 0, sizeof(*destination));
   destination->sequence = ++TaskProcessorSequence;
   /*
@@ -866,6 +916,11 @@ static void Task0729_ConvertToSpectrum(
   destination->fundamental_millihz =
       (uint32_t)(source->fundamental_hz * 1000.0F + 0.5F);
 
+  /*
+   * Only the detected components are accumulated.  Orders 2..16 are valid
+   * THD contributors; missing orders contribute zero.  The original task
+   * allows at most two harmonics, so three component slots are sufficient.
+   */
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
   {
     uint32_t order = source->harmonic_order[index];
@@ -925,6 +980,11 @@ static void USB_PublishAnalysisResult(
     return;
   }
 
+  /*
+   * Vpp alone is converted to the UTG front-panel-equivalent two-range
+   * calibration.  Vrms and component amplitudes remain physical input
+   * values, because the task asks for true RMS and spectral amplitudes.
+   */
   memset(&usb_result, 0, sizeof(usb_result));
   usb_result.analysis_sequence = spectrum->sequence;
   usb_result.timestamp_ms = HAL_GetTick();

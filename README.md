@@ -1,6 +1,6 @@
 # STM32H743 + AD9220 周期信号测量与频谱分析
 
-本工程使用 STM32H743 读取 AD9220 的 12 位并行输出，完成周期信号采集、幅值/频率测量、Simulink 生成算法的频谱分析和 THD 计算，并通过 USART1 输出结果。
+本工程使用 STM32H743 读取 AD9220 的 12 位并行输出，完成周期信号采集、幅值/频率测量、Simulink 生成算法的频谱分析和 THD 计算，并通过带CRC的USB CDC二进制协议输出结果。USART1保留为可选诊断通道。
 
 当前版本已经移除 LCD 的运行路径：固件不初始化 LCD、不刷新屏幕，Makefile 也不再编译 LCD 驱动文件。工程中仍保留部分历史 LCD 源文件，便于追溯旧版本，但它们不参与当前固件。
 
@@ -14,10 +14,10 @@
 | 采样率 | 固定 8 MSPS |
 | 每块采样点数 | 16384 |
 | 单块采集时间 | 2.048 ms |
-| Simulink FFT | 4096 点（8 MSPS 输入经 4 倍抽取后为 2 MSPS） |
+| Simulink FFT | 16384 点，8 MSPS输入不抽取 |
 | Simulink 频率分辨率 | 488.28125 Hz |
 | 频率分量个数 | 最多 3 个，由 Simulink 接口按题目要求输出 |
-| Simulink 基波搜索范围 | 10 kHz 至 500 kHz（当前使用题目 3 模式） |
+| Simulink 基波搜索范围 | 8 kHz 至 510 kHz（覆盖题目要求的10～500 kHz端点） |
 | 串口 | USART1，2,000,000 baud，8N1 |
 | 配置保存 | 只有收到 `SAVE` 时写入 Flash |
 
@@ -34,16 +34,16 @@ flowchart LR
     DMAE --> BUF["D2 SRAM 采样缓冲"]
     DMAD --> BUF
     BUF --> PROCESS["坏点修复 / 测量 / FFT"]
-    PROCESS --> SIMULINK["Task0729_Process<br/>FIR/抽取/4096 FFT"]
-    SIMULINK --> UART["USART1"]
+    PROCESS --> SIMULINK["Task0729_Process<br/>64阶FIR/16384点FFT/联合拟合"]
+    SIMULINK --> USB["USB CDC<br/>63字节分析帧"]
 ```
 
-TIM4_CH4 在 PD15 上连续输出 8 MHz。AD9220 在时钟上升沿锁存输入，DMA 在后续 TIM4 更新事件读取 GPIO，避免 CPU 以 8 MHz 频率进入中断。每次 16384 点采样完成后，程序先修复异常点，再调用一次 `Task0729_Process()`；Simulink 代码在函数内部完成 64 阶 FIR、4 倍抽取和 4096 点 FFT。
+TIM4_CH4 在 PD15 上连续输出 8 MHz。AD9220 在时钟上升沿锁存输入，DMA 在后续 TIM4 更新事件读取 GPIO，避免 CPU 以 8 MHz 频率进入中断。每次 16384 点采样完成后，程序先修复异常点，再调用一次 `Task0729_Process()`；Simulink 代码在函数内部完成 64 阶 FIR 和 16384 点 FFT，包装层再使用原始8 MSPS整帧联合拟合分量幅值、Vpp和Vrms。
 
 Simulink 生成代码和稳定接口位于：
 
 ```text
-Expand/Generated/Task0729/
+Expand/Generated/Task0729V4/
 Expand/Inc/task0729_processor.h
 Expand/Src/task0729_processor.c
 ```
@@ -112,13 +112,13 @@ signed_sample = (raw_code - 2048) << 4;
 
 ## Simulink 频谱与谐波
 
-自动摘要（`FFT ON`）使用刚引入的 `Task0729_Process()`。它接收 16384 个 8 MSPS 输入点，经 4 倍抽取后对 4096 点数据加 Hann 窗并进行 FFT，因此：
+自动摘要（`FFT ON`）使用 `Task0729_Process()`。它接收16384个8 MSPS输入点，不抽取，直接加Hann窗并进行16384点FFT，因此：
 
 ```text
-df = 2,000,000 / 4,096 = 488.28125 Hz
+df = 8,000,000 / 16,384 = 488.28125 Hz
 ```
 
-摘要输出 Simulink 返回的最多 3 个频率分量（按频率排序），以及 `VPP`、`RMS`、基波峰值、基波频率和 THD。分量会按实际谐波次数显示，例如 `H1/H3/H5`，不要求连续。`WAVE` 是生成接口返回的波形点数（最多 600 点）。
+摘要输出最多3个频率分量（按频率排序），以及`VPP`、`RMS`、基波峰值、基波频率和THD。分量会按实际谐波次数显示，例如`H1/H3/H5`，不要求连续。H743不再上传波形点；下游显示控制器根据频率、幅值和谐波阶次合成1个或3个完整周期。
 
 自动摘要的 THD 按 Simulink 返回且能归入基波整数倍的高次分量计算：
 
@@ -190,7 +190,7 @@ DUMP
 典型输出：
 
 ```text
-#FFT seq=117 n=4096 fs=2000000Hz df=488.281Hz f0=500000.000Hz A1=0.063916V VPP=0.128000V RMS=0.045255V THD=19.0311% WAVE=600 BAD=0 T=45044us
+#FFT seq=117 n=16384 fs=8000000Hz df=488.281Hz f0=500000.000Hz A1=0.063916V VPP=0.128000V RMS=0.045255V THD=19.0311% BAD=0 T=45044us
 H1=500000.000Hz/0.063916V H2=1000000.000Hz/0.003207V H3=1500000.000Hz/0.005118V
 ```
 
@@ -204,7 +204,7 @@ H1=500000.000Hz/0.063916V H2=1000000.000Hz/0.003207V H3=1500000.000Hz/0.005118V
 | `df` | 频率分辨率 |
 | `f0` | 识别出的基波频率 |
 | `A1` | 基波峰值 |
-| `VPP` | Simulink 输出的峰峰值 |
+| `VPP` | 44%拟合时域Vpp与56%零相位分量Vpp融合后，再经UTG双量程校准的屏幕等效峰峰值 |
 | `RMS` | Simulink 输出的有效值 |
 | `THD` | Simulink 返回的高次谐波相对基波的总失真 |
 | `WAVE` | Simulink 输出波形点数 |

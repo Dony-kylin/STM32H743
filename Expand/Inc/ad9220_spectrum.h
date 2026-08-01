@@ -10,7 +10,14 @@ extern "C" {
 #define AD9220_SPECTRUM_FFT_SIZE          16384U
 #define AD9220_SPECTRUM_BIN_COUNT         \
   ((AD9220_SPECTRUM_FFT_SIZE / 2U) + 1U)
-#define AD9220_SPECTRUM_HARMONIC_COUNT    10U
+#define AD9220_SPECTRUM_HARMONIC_COUNT    16U
+
+/*
+ * In the current G-problem build, Task0729V4 performs the production FFT.
+ * This module still provides the common repaired-sample function and the
+ * integer-unit spectrum result container. AD9220_SpectrumAnalyze() is kept as
+ * a standalone diagnostic/reference FFT and is not called by scope_app.c.
+ */
 
 typedef struct
 {
@@ -39,7 +46,7 @@ uint32_t AD9220_SpectrumRepairSamples(int16_t *samples, uint32_t count);
 
 /*
  * Runs one 16384-point Hann-windowed real FFT and calculates the fundamental,
- * H1..H10 peak amplitudes and THD. Samples are signed Q15 values where
+ * H1..H16 peak amplitudes and THD. Samples are signed Q15 values where
  * +/-32768 corresponds to +/-2.5 V.
  */
 uint8_t AD9220_SpectrumAnalyze(const int16_t *samples, uint32_t count,

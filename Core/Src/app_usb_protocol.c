@@ -15,6 +15,7 @@ static void write_u16(uint8_t *data, uint16_t value)
 
 uint16_t APP_USB_ProtocolCrc16(const uint8_t *data, size_t length)
 {
+  /* CRC-16/CCITT-FALSE: poly=0x1021, init=0xFFFF, no reflection/xorout. */
   uint16_t crc = 0xFFFFU;
 
   if ((data == NULL) && (length != 0U))
@@ -96,6 +97,11 @@ bool APP_USB_ProtocolParserPush(AppUsbProtocolParser *parser, uint8_t byte,
     return false;
   }
 
+  /*
+   * Byte-stream state machine. USB CDC read boundaries are irrelevant: one
+   * callback may contain half a frame or several frames. On any format/CRC
+   * error parser_resync() preserves a trailing 0xA5 as a possible new header.
+   */
   if (parser->used == 0U)
   {
     parser_resync(parser, byte);
