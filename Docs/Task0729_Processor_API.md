@@ -211,7 +211,7 @@ typedef struct
 电压标定参数在 `task0729_processor.h` 中：
 
 ```c
-#define TASK0729_FRONTEND_GAIN        4.08F
+#define TASK0729_FRONTEND_GAIN        4.0F
 #define TASK0729_VOLTAGE_CALIBRATION  1.0F
 ```
 
@@ -298,8 +298,9 @@ last = Task0729_GetLastResult();
 
 ### 信号发生器实测查表校准
 
-查表数据来自 `信号发生器修正.xlsx`，横轴是屏幕原始读数（mVpeak），
-纵轴是信号发生器设置值（mVpeak）。算法使用单调分段线性反查，放在
+查表数据来自 `信号发生器修正.xlsx`，横轴是屏幕原始读数（mVpp），
+纵轴是信号发生器设置值（mVpp）。模型内部幅值单位是 Vpeak，因此
+查表前先乘以 2000 转换为 mVpp。算法使用单调分段线性反查，放在
 所有频率、幅值和波形计算之后：
 
 ```text
@@ -323,7 +324,7 @@ last = Task0729_GetLastResult();
 → 作为ADC实际输入（高频干扰在此后另行叠加）
 ```
 
-例如设置100 mVpeak时，完整仿真的信号源实际输出89 mVpeak；末端关闭
+例如设置100 mVpp时，完整仿真的信号源实际输出89 mVpp；末端关闭
 拟合时应看到原始值，开启拟合后再由反向表恢复设置值。正向曲线对
 基波和所有谐波使用同一个系数，因此不会改变谐波比例。这个正向模型
 只用于 `G_Sim_V4` 验证，不会进入采集板的导出代码；实物本身已经具有
@@ -339,8 +340,10 @@ STREAM ON
 CORR ON
 ```
 
-运行时可直接切换：`CORR OFF` 输出未拟合值，`CORR ON` 输出拟合值。
+运行时可直接切换：`CORR OFF` 输出未查表的实际测量值，`CORR ON`
+输出分段查表后的信号源屏幕等效值。联合正弦拟合在两种状态下都保留。
 `STATUS` 回应中包含 `CORR=ON/OFF`。
+当前测试版本上电默认为 `CORR OFF`，即跳过信号发生器分段线性查表。
 
 可通过串口命令切换分析模式：
 

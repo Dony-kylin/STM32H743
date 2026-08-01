@@ -1042,7 +1042,7 @@ static void UART_HandleScopeCommand(char *command)
         "#CMD RATE 8000000 (effective sample rate)\r\n"
         "#CMD DUMP (one 16384-point CSV waveform)\r\n"
         "#CMD FFT ON/OFF (Simulink 16384-point, up to 3 components)\r\n"
-        "#CMD CORR ON/OFF (fitted/raw final voltage outputs)\r\n"
+        "#CMD CORR ON/OFF (generator lookup/measured voltage outputs)\r\n"
         "#CMD STREAM ON/OFF | SAVE | STATUS | HELP\r\n");
   }
   else if (strcmp(cursor, "STATUS") == 0)
