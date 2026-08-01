@@ -9,7 +9,6 @@ extern "C" {
 
 #define TASK0729_INPUT_SAMPLES       16384U
 #define TASK0729_COMPONENT_COUNT     3U
-#define TASK0729_WAVEFORM_SAMPLES    600U
 #define TASK0729_INPUT_SAMPLE_RATE_HZ 8000000.0F
 #define TASK0729_ADC_FULL_SCALE_VPK   2.5F
 
@@ -47,8 +46,6 @@ typedef struct
   float vpp;
   float vrms;
   float fundamental_hz;
-  float waveform[TASK0729_WAVEFORM_SAMPLES];
-  uint16_t waveform_count;
 } Task0729_Result;
 
 /*
@@ -59,7 +56,7 @@ void Task0729_Init(void);
 /*
  * Selects the final generator calibration fitted from the measured table.
  * 0: keep raw measured values; nonzero: output fitted values.
- * The Task0729_Process() call signature therefore remains unchanged.
+ * This selection is independent of Task0729_Process().
  */
 void Task0729_SetGeneratorCorrection(uint8_t enable);
 uint8_t Task0729_GetGeneratorCorrection(void);
@@ -75,21 +72,16 @@ uint8_t Task0729_GetGeneratorCorrection(void);
  * mode:
  *   TASK0729_MODE_QUESTION_1, _2, or _3.
  *
- * periods:
- *   Selects 1 or 3 complete periods. The selected interval is resampled
- *   after frame processing to exactly TASK0729_WAVEFORM_SAMPLES points.
- *
  * Returns 1 on success, 0 for an invalid argument.
  */
 uint8_t Task0729_Process(
     const int16_t samples[TASK0729_INPUT_SAMPLES],
     Task0729_Mode mode,
-    uint8_t periods,
     Task0729_Result *result);
 
 /*
  * Converts one signed Q15 ADC sample to the calibrated external-input
- * voltage. This uses the same scale as amplitude_vpk, vpp, vrms and waveform.
+ * voltage. This uses the same scale as amplitude_vpk, vpp and vrms.
  */
 float Task0729_SampleToInputVolts(int16_t sample);
 

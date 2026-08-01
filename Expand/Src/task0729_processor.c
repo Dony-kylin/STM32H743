@@ -94,7 +94,6 @@ uint8_t Task0729_GetGeneratorCorrection(void)
 uint8_t Task0729_Process(
     const int16_t samples[TASK0729_INPUT_SAMPLES],
     Task0729_Mode mode,
-    uint8_t periods,
     Task0729_Result *result)
 {
   uint32_t index;
@@ -114,17 +113,11 @@ uint8_t Task0729_Process(
   {
     return 0U;
   }
-  if ((periods != 1U) && (periods != 3U))
-  {
-    return 0U;
-  }
-
   /* 1. 把一整帧ADC数据交给Simulink生成代码。 */
   memcpy(G_Export_V4_U.adc_block, samples,
          sizeof(G_Export_V4_U.adc_block));
   /* 统一使用题目3：所有工况都走抗干扰和幅值补偿路径。 */
   G_Export_V4_U.mode = (uint8_T)TASK0729_MODE_QUESTION_3;
-  G_Export_V4_U.periods = periods;
   G_Export_V4_U.generator_correction_enable =
       task0729_generator_correction_enabled;
   /* 2. 执行FFT、谐波提取和题目3的抗干扰处理。 */
@@ -157,19 +150,11 @@ uint8_t Task0729_Process(
   current->vpp = G_Export_V4_Y.Vpp * output_scale;
   current->vrms = G_Export_V4_Y.Vrms * output_scale;
   current->fundamental_hz = G_Export_V4_Y.fundamental_Hz;
-  current->waveform_count = G_Export_V4_Y.waveCount;
-  for (index = 0U; index < TASK0729_WAVEFORM_SAMPLES; ++index)
-  {
-    current->waveform[index] =
-        G_Export_V4_Y.waveform[index] * output_scale;
-  }
-
   /*
    * 4. 用原始ADC整帧重新拟合幅值，减少FFT栅栏误差。
    * Jointly refit all detected tones against the original 8 MSPS block.
    * This reduces cross-talk between strong adjacent components and removes
-   * DC-offset bias.  Keep Vpp, Vrms and waveform from the generated path so
-   * they continue to describe the actual filtered ADC input.
+   * DC-offset bias. Vpp and Vrms continue to describe the fitted ADC input.
    */
   amplitudes_refined = Task0729_RefineAmplitudes(samples, current);
   for (index = 0U; index < TASK0729_COMPONENT_COUNT; ++index)
@@ -262,12 +247,6 @@ uint8_t Task0729_Process(
     task0729_last_result.fundamental_hz =
         current->fundamental_hz;
   }
-  task0729_last_result.waveform_count =
-      current->waveform_count;
-  memcpy(task0729_last_result.waveform,
-         current->waveform,
-         sizeof(task0729_last_result.waveform));
-
   task0729_history_valid = 1U;
   *result = task0729_last_result;
   return 1U;
